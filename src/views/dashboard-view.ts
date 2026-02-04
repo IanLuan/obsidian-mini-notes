@@ -149,10 +149,6 @@ export class VisualDashboardView extends ItemView {
 			}
 		});
 
-		// Filter chips container
-		const filterChipsContainer = this.contentEl.createDiv({ cls: 'filter-chips-container' });
-		this.renderFilterChips(filterChipsContainer);
-		
 		// Create mini notes grid container
 		this.miniNotesGrid = this.contentEl.createDiv({ cls: 'mini-notes-grid' });
 
@@ -371,127 +367,6 @@ export class VisualDashboardView extends ItemView {
 		this.searchSuggestionsEl.removeClass('show');
 	}
 
-	private renderFilterChips(container: HTMLElement) {
-		container.empty();
-		
-		let hasFilters = false;
-		
-		// Search query chip (non-operator part)
-		const cleanQuery = this.filterSearch
-			.replace(/(tag|color|is|has|type):\S+/gi, '')
-			.trim();
-		
-		if (cleanQuery) {
-			hasFilters = true;
-			const chip = container.createDiv({ cls: 'filter-chip' });
-			chip.createSpan({ text: `"${cleanQuery}"`, cls: 'filter-chip-text' });
-			const clearBtn = chip.createDiv({ cls: 'filter-chip-clear' });
-			setIcon(clearBtn, 'x');
-			clearBtn.addEventListener('click', () => {
-				// Remove only the text query, keep operators
-				const operators = this.filterSearch.match(/(tag|color|is|has|type):\S+/gi) || [];
-				this.filterSearch = operators.join(' ');
-				const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
-				if (searchInput) searchInput.value = this.filterSearch;
-				this.parseSearchOperators(this.filterSearch);
-				void this.renderCards();
-			});
-		}
-		
-		// Tag filter chip
-		if (this.filterTag) {
-			hasFilters = true;
-			const chip = container.createDiv({ cls: 'filter-chip filter-chip-tag' });
-			chip.createSpan({ text: `tag:${this.filterTag}`, cls: 'filter-chip-text' });
-			const clearBtn = chip.createDiv({ cls: 'filter-chip-clear' });
-			setIcon(clearBtn, 'x');
-			clearBtn.addEventListener('click', () => {
-				this.filterTag = null;
-				this.filterSearch = this.filterSearch.replace(/tag:\S+/gi, '').trim();
-				const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
-				if (searchInput) searchInput.value = this.filterSearch;
-				void this.renderCards();
-			});
-		}
-		
-		// Color filter chips
-		this.filterColors.forEach(color => {
-			hasFilters = true;
-			const chip = container.createDiv({ cls: 'filter-chip filter-chip-color' });
-			chip.createSpan({ text: `color:${color}`, cls: 'filter-chip-text' });
-			const clearBtn = chip.createDiv({ cls: 'filter-chip-clear' });
-			setIcon(clearBtn, 'x');
-			clearBtn.addEventListener('click', () => {
-				this.filterColors = this.filterColors.filter(c => c !== color);
-				this.filterSearch = this.filterSearch.replace(new RegExp(`color:${color}`, 'gi'), '').trim();
-				const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
-				if (searchInput) searchInput.value = this.filterSearch;
-				void this.renderCards();
-			});
-		});
-		
-		// Pinned filter chip
-		if (this.filterPinned !== 'all') {
-			hasFilters = true;
-			const chip = container.createDiv({ cls: 'filter-chip filter-chip-pinned' });
-			chip.createSpan({ text: `is:${this.filterPinned}`, cls: 'filter-chip-text' });
-			const clearBtn = chip.createDiv({ cls: 'filter-chip-clear' });
-			setIcon(clearBtn, 'x');
-			clearBtn.addEventListener('click', () => {
-				this.filterPinned = 'all';
-				this.filterSearch = this.filterSearch.replace(/is:(pinned|unpinned)/gi, '').trim();
-				const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
-				if (searchInput) searchInput.value = this.filterSearch;
-				const pinToggle = this.contentEl.querySelector('.filter-icon[aria-label*=\"pinned\"]') as HTMLElement;
-				if (pinToggle) pinToggle.removeClass('active');
-				void this.renderCards();
-			});
-		}
-		
-		// Has: operator chips
-		this.filterOperators.forEach((value, operator) => {
-			if (operator === 'has') {
-				hasFilters = true;
-				const chip = container.createDiv({ cls: 'filter-chip' });
-				chip.createSpan({ text: `has:${value}`, cls: 'filter-chip-text' });
-				const clearBtn = chip.createDiv({ cls: 'filter-chip-clear' });
-				setIcon(clearBtn, 'x');
-				clearBtn.addEventListener('click', () => {
-					this.filterOperators.delete(operator);
-					this.filterSearch = this.filterSearch.replace(/has:\S+/gi, '').trim();
-					const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
-					if (searchInput) searchInput.value = this.filterSearch;
-					void this.renderCards();
-				});
-			} else if (operator === 'type') {
-				hasFilters = true;
-				const chip = container.createDiv({ cls: 'filter-chip filter-chip-type' });
-				chip.createSpan({ text: `type:${value}`, cls: 'filter-chip-text' });
-				const clearBtn = chip.createDiv({ cls: 'filter-chip-clear' });
-				setIcon(clearBtn, 'x');
-				clearBtn.addEventListener('click', () => {
-					this.filterOperators.delete(operator);
-					this.filterSearch = this.filterSearch.replace(/type:\S+/gi, '').trim();
-					const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
-					if (searchInput) searchInput.value = this.filterSearch;
-					void this.renderCards();
-				});
-			}
-		});
-		
-		// Clear all filters button
-		if (hasFilters) {
-			const clearAll = container.createDiv({ cls: 'filter-chip-clear-all' });
-			clearAll.textContent = 'Clear all';
-			clearAll.addEventListener('click', () => {
-				this.clearAllFilters();
-				void this.renderCards();
-			});
-		}
-		
-		container.style.display = hasFilters ? 'flex' : 'none';
-	}
-
 	private clearAllFilters() {
 		this.filterSearch = '';
 		this.filterTag = null;
@@ -545,12 +420,6 @@ export class VisualDashboardView extends ItemView {
 	async renderCards() {
 		try {
 			this.miniNotesGrid.empty();
-			
-			// Update filter chips
-			const filterChipsContainer = this.contentEl.querySelector('.filter-chips-container') as HTMLElement;
-			if (filterChipsContainer) {
-				this.renderFilterChips(filterChipsContainer);
-			}
 
 			// Get all markdown files, filtered by source folder if specified
 			let files = this.app.vault.getMarkdownFiles();
