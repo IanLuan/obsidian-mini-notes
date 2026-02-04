@@ -9,11 +9,15 @@ Review them later in a colorful Google Keep-style card-based view, where you can
 
 **Light Theme**
 
-![Masonry View](src/imgs/light-theme.png)
+![Light Theme](src/imgs/light-theme.png)
 
 **Dark Theme**
 
-![Masonry View](src/imgs/dark-theme.png)
+![Dark Theme](src/imgs/dark-theme.png)
+
+**Aligns with whatever theme you have!**
+
+![Other Themes](src/imgs/other-themes.jpg)
 
 ### **IOS & Android Mobile Support**
 <img src="src/imgs/android.jpeg" alt="Android View" height="500" />
