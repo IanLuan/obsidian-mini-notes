@@ -51,6 +51,31 @@ export class MiniNotesSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
+			.setName('Create folder')
+			.setDesc('Folder where new mini notes will be created')
+			.addDropdown(dropdown => {
+				// Get all folders in vault
+				const folders = this.app.vault.getAllLoadedFiles()
+					.filter(file => 'children' in file && file.children !== undefined)
+					.map(folder => folder.path)
+					.filter(path => path !== '');
+				
+				// Add root as an option
+				dropdown.addOption('/', 'Root folder');
+				
+				// Add other folders
+				folders.forEach(folder => {
+					dropdown.addOption(folder, folder);
+				});
+				
+				dropdown.setValue(this.plugin.data.createFolder);
+				dropdown.onChange(async (value) => {
+					this.plugin.data.createFolder = value;
+					await this.plugin.savePluginData();
+				});
+			});
+
+		new Setting(containerEl)
 			.setName('Maximum notes')
 			.setDesc('Maximum number of notes to display (more than 300 is not recommended)')
 			.addText(text => text

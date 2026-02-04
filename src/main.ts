@@ -165,11 +165,11 @@ export default class VisualDashboardPlugin extends Plugin {
 
 	async createMiniNote() {
 		try {
-			// Always create notes in Mini Notes folder
-			const folderPath = normalizePath('Mini Notes');
+			// Create notes in configured folder
+			const folderPath = normalizePath(this.data.createFolder);
 			
-			// Ensure folder exists
-			if (!this.app.vault.getAbstractFileByPath(folderPath)) {
+			// Ensure folder exists (skip if root folder)
+			if (folderPath !== '/' && !this.app.vault.getAbstractFileByPath(folderPath)) {
 				await this.app.vault.createFolder(folderPath);
 			}
 			
@@ -179,12 +179,16 @@ export default class VisualDashboardPlugin extends Plugin {
 			
 			// Find available filename
 			let fileName = `${date}.md`;
-			let filePath = normalizePath(`${folderPath}/${fileName}`);
+			let filePath = folderPath === '/' 
+				? normalizePath(fileName)
+				: normalizePath(`${folderPath}/${fileName}`);
 			let counter = 1;
 			
 			while (this.app.vault.getAbstractFileByPath(filePath)) {
 				fileName = `${date} (${counter}).md`;
-				filePath = normalizePath(`${folderPath}/${fileName}`);
+				filePath = folderPath === '/' 
+					? normalizePath(fileName)
+					: normalizePath(`${folderPath}/${fileName}`);
 				counter++;
 			}
 			
