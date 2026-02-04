@@ -149,54 +149,6 @@ export class VisualDashboardView extends ItemView {
 			}
 		});
 
-		// Tag filter - icon with dropdown
-		const tagWrapper = controls.createDiv({ cls: 'tag-filter-wrapper' });
-		const tagIcon = tagWrapper.createDiv({ cls: 'filter-icon tag-filter-button' });
-		setIcon(tagIcon, 'tag');
-
-		// Create dropdown menu
-		const dropdown = tagWrapper.createDiv({ cls: 'tag-dropdown-menu' });
-		
-		// Add "All tags" option
-		const allOption = dropdown.createDiv({ cls: 'tag-dropdown-item' });
-		allOption.textContent = 'All tags';
-		allOption.addEventListener('click', () => {
-			this.filterTag = null;
-			tagIcon.toggleClass('active', false);
-			dropdown.toggleClass('show', false);
-			void this.renderCards();
-		});
-
-		// Toggle dropdown on click
-		tagIcon.addEventListener('click', (e: MouseEvent) => {
-			e.stopPropagation();
-			const isCurrentlyShown = dropdown.hasClass('show');
-			dropdown.toggleClass('show', !isCurrentlyShown);
-			if (!isCurrentlyShown) {
-				void this.populateTagDropdown(dropdown, tagIcon);
-			}
-		});
-
-		// Close dropdown when clicking outside
-		this.registerDomEvent(document, 'click', () => {
-			dropdown.toggleClass('show', false);
-		});
-
-		// Pin toggle icon
-		const pinToggle = controls.createDiv({ cls: 'filter-icon' });
-		setIcon(pinToggle, 'pin');
-		pinToggle.setAttribute('aria-label', 'Show pinned only');
-		pinToggle.addEventListener('click', () => {
-			if (this.filterPinned === 'all') {
-				this.filterPinned = 'pinned';
-				pinToggle.addClass('active');
-			} else {
-				this.filterPinned = 'all';
-				pinToggle.removeClass('active');
-			}
-			void this.renderCards();
-		});
-
 		// Filter chips container
 		const filterChipsContainer = this.contentEl.createDiv({ cls: 'filter-chips-container' });
 		this.renderFilterChips(filterChipsContainer);
@@ -248,28 +200,6 @@ export class VisualDashboardView extends ItemView {
 		
 		// Re-render cards to reflect setting changes
 		await this.renderCards();
-	}
-
-	private populateTagDropdown(dropdown: HTMLElement, tagIcon: HTMLElement) {
-		this.renderTagDropdownItems(dropdown, tagIcon);
-	}
-
-	private renderTagDropdownItems(dropdown: HTMLElement, tagIcon: HTMLElement) {
-		// Remove existing tag items (keep "All tags" option)
-		const existingTags = dropdown.querySelectorAll('.tag-dropdown-item:not(:first-child)');
-		existingTags.forEach(el => el.remove());
-
-		this.allTags.forEach(tag => {
-			const item = dropdown.createDiv({ cls: 'tag-dropdown-item tag-pill' });
-			item.textContent = tag;
-			item.addEventListener('click', (e: MouseEvent) => {
-				e.stopPropagation();
-				this.filterTag = tag;
-				tagIcon.toggleClass('active', true);
-				dropdown.toggleClass('show', false);
-				void this.renderCards();
-			});
-		});
 	}
 
 	private debouncedRefresh() {
