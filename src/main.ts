@@ -45,6 +45,13 @@ export default class VisualDashboardPlugin extends Plugin {
 
 		// Add settings tab
 		this.addSettingTab(new MiniNotesSettingTab(this.app, this));
+
+		// Listen for file renames to update paths in data
+		this.registerEvent(
+			this.app.vault.on('rename', (file, oldPath) => {
+				void this.handleFileRename(file.path, oldPath);
+			})
+		);
 		} catch (error) {
 			console.error('Error loading Mini Notes plugin:', error);
 		}
@@ -106,6 +113,39 @@ export default class VisualDashboardPlugin extends Plugin {
 			await this.savePluginData();
 		} catch (error) {
 			console.error('Error updating note order:', error);
+		}
+	}
+
+	async handleFileRename(newPath: string, oldPath: string) {
+		try {
+			let dataChanged = false;
+
+			// Update pinned notes
+			const pinnedIndex = this.data.pinnedNotes.indexOf(oldPath);
+			if (pinnedIndex > -1) {
+				this.data.pinnedNotes[pinnedIndex] = newPath;
+				dataChanged = true;
+			}
+
+			// Update note order
+			const orderIndex = this.data.noteOrder.indexOf(oldPath);
+			if (orderIndex > -1) {
+				this.data.noteOrder[orderIndex] = newPath;
+				dataChanged = true;
+			}
+
+			// Update note colors
+			if (this.data.noteColors[oldPath]) {
+				this.data.noteColors[newPath] = this.data.noteColors[oldPath];
+				delete this.data.noteColors[oldPath];
+				dataChanged = true;
+			}
+
+			if (dataChanged) {
+				await this.savePluginData();
+			}
+		} catch (error) {
+			console.error('Error handling file rename:', error);
 		}
 	}
 

@@ -231,6 +231,9 @@ export class VisualDashboardView extends ItemView {
 		this.registerEvent(
 			this.app.vault.on('delete', () => this.debouncedRefresh())
 		);
+		this.registerEvent(
+			this.app.vault.on('rename', () => this.debouncedRefresh())
+		);
 	}
 
 	private async refreshView() {
