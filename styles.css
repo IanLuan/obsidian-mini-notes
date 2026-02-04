@@ -698,7 +698,7 @@
     overflow-x: auto;
     font-size: 11px;
     line-height: 1.4;
-    max-height: 200px;
+    max-height: 300px;
     display: block !important;
 }
 
@@ -721,6 +721,31 @@
     background: transparent;
     padding: 0;
     border-radius: 0;
+}
+
+/* Tables in preview */
+.card-preview table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+    font-size: 11px;
+    display: table !important;
+}
+
+.card-preview table th,
+.card-preview table td {
+    border: 1px solid var(--background-modifier-border);
+    padding: 4px 8px;
+    text-align: left;
+}
+
+.card-preview table th {
+    background: var(--background-secondary);
+    font-weight: 600;
+}
+
+.card-preview table tr:hover {
+    background: var(--background-modifier-hover);
 }
 
 /* Apply line clamp only to paragraphs and text elements, not code blocks */
