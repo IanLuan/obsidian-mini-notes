@@ -17,7 +17,11 @@ export class VisualDashboardView extends ItemView {
 	// Filter state
 	private filterPinned: 'all' | 'pinned' | 'unpinned' = 'all';
 	private filterTag: string | null = null;
+	private filterSearch: string = '';
 	private allTags: string[] = [];
+	private filterColors: string[] = [];
+	private filterOperators: Map<string, string> = new Map();
+	private searchSuggestionsEl: HTMLElement | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: VisualDashboardPlugin) {
 		super(leaf);
@@ -78,6 +82,73 @@ export class VisualDashboardView extends ItemView {
 		// Controls on right
 		const controls = header.createDiv({ cls: 'header-controls' });
 
+		// Search bar with autocomplete
+		const searchContainer = controls.createDiv({ cls: 'search-container' });
+		const searchWrapper = searchContainer.createDiv({ cls: 'search-wrapper' });
+		const searchIcon = searchWrapper.createDiv({ cls: 'search-icon' });
+		setIcon(searchIcon, 'search');
+		
+		const searchInput = searchWrapper.createEl('input', { 
+			type: 'text', 
+			placeholder: 'Search notes (try tag:, color:, type:, is:pinned)',
+			cls: 'search-input'
+		});
+		
+		searchInput.value = this.filterSearch;
+		
+		// Clear button
+		const clearBtn = searchWrapper.createDiv({ cls: 'search-clear-btn' });
+		setIcon(clearBtn, 'x');
+		clearBtn.style.display = this.filterSearch ? 'flex' : 'none';
+		
+		clearBtn.addEventListener('click', () => {
+			searchInput.value = '';
+			this.filterSearch = '';
+			clearBtn.style.display = 'none';
+			this.clearAllFilters();
+			void this.renderCards();
+		});
+		
+		// Focus search on icon click
+		searchIcon.addEventListener('click', () => {
+			searchInput.focus();
+		});
+		
+		// Autocomplete suggestions dropdown
+		this.searchSuggestionsEl = searchContainer.createDiv({ cls: 'search-suggestions' });
+		
+		// Event listeners for search
+		searchInput.addEventListener('input', (e) => {
+			const target = e.target as HTMLInputElement;
+			this.filterSearch = target.value;
+			clearBtn.style.display = target.value ? 'flex' : 'none';
+			
+			// Show suggestions
+			this.updateSearchSuggestions(target.value);
+			
+			// Parse operators and use debounced refresh
+			this.parseSearchOperators(target.value);
+			this.debouncedRefresh();
+		});
+		
+		// Close suggestions on blur
+		searchInput.addEventListener('blur', () => {
+			setTimeout(() => {
+				if (this.searchSuggestionsEl) {
+					this.searchSuggestionsEl.empty();
+					this.searchSuggestionsEl.removeClass('show');
+				}
+			}, 200);
+		});
+		
+		// Handle keyboard navigation in suggestions
+		searchInput.addEventListener('keydown', (e: KeyboardEvent) => {
+			if (e.key === 'Escape' && this.searchSuggestionsEl) {
+				this.searchSuggestionsEl.empty();
+				this.searchSuggestionsEl.removeClass('show');
+			}
+		});
+
 		// Tag filter - icon with dropdown
 		const tagWrapper = controls.createDiv({ cls: 'tag-filter-wrapper' });
 		const tagIcon = tagWrapper.createDiv({ cls: 'filter-icon tag-filter-button' });
@@ -126,6 +197,10 @@ export class VisualDashboardView extends ItemView {
 			void this.renderCards();
 		});
 
+		// Filter chips container
+		const filterChipsContainer = this.contentEl.createDiv({ cls: 'filter-chips-container' });
+		this.renderFilterChips(filterChipsContainer);
+		
 		// Create mini notes grid container
 		this.miniNotesGrid = this.contentEl.createDiv({ cls: 'mini-notes-grid' });
 
@@ -205,6 +280,313 @@ export class VisualDashboardView extends ItemView {
 		}, DEBOUNCE_REFRESH_MS);
 	}
 
+	private parseSearchOperators(query: string) {
+		this.filterOperators.clear();
+		this.filterColors = [];
+		
+		// Parse operators: tag:name, color:red, is:pinned, has:tags, type:empty, etc.
+		const operatorRegex = /(tag|color|is|has|type):(\S+)/gi;
+		let match;
+		
+		while ((match = operatorRegex.exec(query)) !== null) {
+			const operator = match[1]?.toLowerCase();
+			const value = match[2]?.toLowerCase();
+			
+			if (!operator || !value) continue;
+			
+			if (operator === 'tag') {
+				this.filterTag = value;
+			} else if (operator === 'color') {
+				this.filterColors.push(value);
+			} else if (operator === 'is') {
+				if (value === 'pinned') {
+					this.filterPinned = 'pinned';
+				} else if (value === 'unpinned') {
+					this.filterPinned = 'unpinned';
+				}
+			} else if (operator === 'has' || operator === 'type') {
+				this.filterOperators.set(operator, value);
+			}
+		}
+	}
+
+	private updateSearchSuggestions(query: string) {
+		if (!this.searchSuggestionsEl) return;
+		
+		this.searchSuggestionsEl.empty();
+		
+		const lastWord = query.split(' ').pop() || '';
+		
+		// Show operator suggestions
+		if (!lastWord.includes(':')) {
+			const operators = ['tag:', 'color:', 'type:', 'is:pinned', 'is:unpinned', 'has:tags', 'has:content'];
+			const matchingOps = operators.filter(op => op.startsWith(lastWord.toLowerCase()));
+			
+			if (matchingOps.length > 0 && lastWord.length > 0) {
+				matchingOps.forEach(op => {
+					const suggestion = this.searchSuggestionsEl!.createDiv({ cls: 'search-suggestion-item' });
+					suggestion.textContent = op;
+					suggestion.addEventListener('mousedown', (e) => {
+						e.preventDefault();
+						const words = query.split(' ');
+						words[words.length - 1] = op;
+						const newQuery = words.join(' ');
+						const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+						if (searchInput) {
+							searchInput.value = newQuery;
+							this.filterSearch = newQuery;
+							searchInput.focus();
+						}
+					});
+				});
+				this.searchSuggestionsEl.addClass('show');
+				return;
+			}
+		}
+		
+		// Show tag suggestions when typing tag:
+		if (lastWord.startsWith('tag:')) {
+			const tagPrefix = lastWord.substring(4).toLowerCase();
+			const matchingTags = this.allTags.filter(tag => 
+				tag.toLowerCase().includes(tagPrefix)
+			);
+			
+			if (matchingTags.length > 0) {
+				matchingTags.slice(0, 8).forEach(tag => {
+					const suggestion = this.searchSuggestionsEl!.createDiv({ cls: 'search-suggestion-item' });
+					suggestion.textContent = `tag:${tag}`;
+					suggestion.addEventListener('mousedown', (e) => {
+						e.preventDefault();
+						const words = query.split(' ');
+						words[words.length - 1] = `tag:${tag}`;
+						const newQuery = words.join(' ') + ' ';
+						const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+						if (searchInput) {
+							searchInput.value = newQuery;
+							this.filterSearch = newQuery;
+							this.parseSearchOperators(newQuery);
+							searchInput.focus();
+							this.debouncedRefresh();
+						}
+					});
+				});
+				this.searchSuggestionsEl.addClass('show');
+				return;
+			}
+		}
+		
+		// Show color suggestions when typing color:
+		if (lastWord.startsWith('color:')) {
+			const colors = ['pink', 'peach', 'yellow', 'green', 'blue', 'purple', 'magenta', 'gray'];
+			const colorPrefix = lastWord.substring(6).toLowerCase();
+			const matchingColors = colors.filter(c => c.startsWith(colorPrefix));
+			
+			if (matchingColors.length > 0) {
+				matchingColors.forEach(color => {
+					const suggestion = this.searchSuggestionsEl!.createDiv({ cls: 'search-suggestion-item' });
+					suggestion.textContent = `color:${color}`;
+					suggestion.addEventListener('mousedown', (e) => {
+						e.preventDefault();
+						const words = query.split(' ');
+						words[words.length - 1] = `color:${color}`;
+						const newQuery = words.join(' ') + ' ';
+						const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+						if (searchInput) {
+							searchInput.value = newQuery;
+							this.filterSearch = newQuery;
+							this.parseSearchOperators(newQuery);
+							searchInput.focus();
+							this.debouncedRefresh();
+						}
+					});
+				});
+				this.searchSuggestionsEl.addClass('show');
+				return;
+			}
+		}
+		
+		// Show type suggestions when typing type:
+		if (lastWord.startsWith('type:')) {
+			const types = ['empty', 'image', 'link', 'list', 'code', 'table'];
+			const typePrefix = lastWord.substring(5).toLowerCase();
+			const matchingTypes = types.filter(t => t.startsWith(typePrefix));
+			
+			if (matchingTypes.length > 0) {
+				matchingTypes.forEach(type => {
+					const suggestion = this.searchSuggestionsEl!.createDiv({ cls: 'search-suggestion-item' });
+					suggestion.textContent = `type:${type}`;
+					suggestion.addEventListener('mousedown', (e) => {
+						e.preventDefault();
+						const words = query.split(' ');
+						words[words.length - 1] = `type:${type}`;
+						const newQuery = words.join(' ') + ' ';
+						const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+						if (searchInput) {
+							searchInput.value = newQuery;
+							this.filterSearch = newQuery;
+							this.parseSearchOperators(newQuery);
+							searchInput.focus();
+							this.debouncedRefresh();
+						}
+					});
+				});
+				this.searchSuggestionsEl.addClass('show');
+				return;
+			}
+		}
+		
+		this.searchSuggestionsEl.removeClass('show');
+	}
+
+	private renderFilterChips(container: HTMLElement) {
+		container.empty();
+		
+		let hasFilters = false;
+		
+		// Search query chip (non-operator part)
+		const cleanQuery = this.filterSearch
+			.replace(/(tag|color|is|has|type):\S+/gi, '')
+			.trim();
+		
+		if (cleanQuery) {
+			hasFilters = true;
+			const chip = container.createDiv({ cls: 'filter-chip' });
+			chip.createSpan({ text: `"${cleanQuery}"`, cls: 'filter-chip-text' });
+			const clearBtn = chip.createDiv({ cls: 'filter-chip-clear' });
+			setIcon(clearBtn, 'x');
+			clearBtn.addEventListener('click', () => {
+				// Remove only the text query, keep operators
+				const operators = this.filterSearch.match(/(tag|color|is|has|type):\S+/gi) || [];
+				this.filterSearch = operators.join(' ');
+				const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+				if (searchInput) searchInput.value = this.filterSearch;
+				this.parseSearchOperators(this.filterSearch);
+				void this.renderCards();
+			});
+		}
+		
+		// Tag filter chip
+		if (this.filterTag) {
+			hasFilters = true;
+			const chip = container.createDiv({ cls: 'filter-chip filter-chip-tag' });
+			chip.createSpan({ text: `tag:${this.filterTag}`, cls: 'filter-chip-text' });
+			const clearBtn = chip.createDiv({ cls: 'filter-chip-clear' });
+			setIcon(clearBtn, 'x');
+			clearBtn.addEventListener('click', () => {
+				this.filterTag = null;
+				this.filterSearch = this.filterSearch.replace(/tag:\S+/gi, '').trim();
+				const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+				if (searchInput) searchInput.value = this.filterSearch;
+				void this.renderCards();
+			});
+		}
+		
+		// Color filter chips
+		this.filterColors.forEach(color => {
+			hasFilters = true;
+			const chip = container.createDiv({ cls: 'filter-chip filter-chip-color' });
+			chip.createSpan({ text: `color:${color}`, cls: 'filter-chip-text' });
+			const clearBtn = chip.createDiv({ cls: 'filter-chip-clear' });
+			setIcon(clearBtn, 'x');
+			clearBtn.addEventListener('click', () => {
+				this.filterColors = this.filterColors.filter(c => c !== color);
+				this.filterSearch = this.filterSearch.replace(new RegExp(`color:${color}`, 'gi'), '').trim();
+				const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+				if (searchInput) searchInput.value = this.filterSearch;
+				void this.renderCards();
+			});
+		});
+		
+		// Pinned filter chip
+		if (this.filterPinned !== 'all') {
+			hasFilters = true;
+			const chip = container.createDiv({ cls: 'filter-chip filter-chip-pinned' });
+			chip.createSpan({ text: `is:${this.filterPinned}`, cls: 'filter-chip-text' });
+			const clearBtn = chip.createDiv({ cls: 'filter-chip-clear' });
+			setIcon(clearBtn, 'x');
+			clearBtn.addEventListener('click', () => {
+				this.filterPinned = 'all';
+				this.filterSearch = this.filterSearch.replace(/is:(pinned|unpinned)/gi, '').trim();
+				const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+				if (searchInput) searchInput.value = this.filterSearch;
+				const pinToggle = this.contentEl.querySelector('.filter-icon[aria-label*=\"pinned\"]') as HTMLElement;
+				if (pinToggle) pinToggle.removeClass('active');
+				void this.renderCards();
+			});
+		}
+		
+		// Has: operator chips
+		this.filterOperators.forEach((value, operator) => {
+			if (operator === 'has') {
+				hasFilters = true;
+				const chip = container.createDiv({ cls: 'filter-chip' });
+				chip.createSpan({ text: `has:${value}`, cls: 'filter-chip-text' });
+				const clearBtn = chip.createDiv({ cls: 'filter-chip-clear' });
+				setIcon(clearBtn, 'x');
+				clearBtn.addEventListener('click', () => {
+					this.filterOperators.delete(operator);
+					this.filterSearch = this.filterSearch.replace(/has:\S+/gi, '').trim();
+					const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+					if (searchInput) searchInput.value = this.filterSearch;
+					void this.renderCards();
+				});
+			} else if (operator === 'type') {
+				hasFilters = true;
+				const chip = container.createDiv({ cls: 'filter-chip filter-chip-type' });
+				chip.createSpan({ text: `type:${value}`, cls: 'filter-chip-text' });
+				const clearBtn = chip.createDiv({ cls: 'filter-chip-clear' });
+				setIcon(clearBtn, 'x');
+				clearBtn.addEventListener('click', () => {
+					this.filterOperators.delete(operator);
+					this.filterSearch = this.filterSearch.replace(/type:\S+/gi, '').trim();
+					const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+					if (searchInput) searchInput.value = this.filterSearch;
+					void this.renderCards();
+				});
+			}
+		});
+		
+		// Clear all filters button
+		if (hasFilters) {
+			const clearAll = container.createDiv({ cls: 'filter-chip-clear-all' });
+			clearAll.textContent = 'Clear all';
+			clearAll.addEventListener('click', () => {
+				this.clearAllFilters();
+				void this.renderCards();
+			});
+		}
+		
+		container.style.display = hasFilters ? 'flex' : 'none';
+	}
+
+	private clearAllFilters() {
+		this.filterSearch = '';
+		this.filterTag = null;
+		this.filterPinned = 'all';
+		this.filterColors = [];
+		this.filterOperators.clear();
+		
+		const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+		if (searchInput) {
+			searchInput.value = '';
+		}
+		
+		const clearBtn = this.contentEl.querySelector('.search-clear-btn') as HTMLElement;
+		if (clearBtn) {
+			clearBtn.style.display = 'none';
+		}
+		
+		const pinToggle = this.contentEl.querySelector('.filter-icon[aria-label*=\"pinned\"]') as HTMLElement;
+		if (pinToggle) {
+			pinToggle.removeClass('active');
+		}
+		
+		const filterChipsContainer = this.contentEl.querySelector('.filter-chips-container') as HTMLElement;
+		if (filterChipsContainer) {
+			filterChipsContainer.style.display = 'none';
+		}
+	}
+
 	private applyThemeColor() {
 		const container = this.contentEl;
 		let themeColor: string;
@@ -230,6 +612,12 @@ export class VisualDashboardView extends ItemView {
 	async renderCards() {
 		try {
 			this.miniNotesGrid.empty();
+			
+			// Update filter chips
+			const filterChipsContainer = this.contentEl.querySelector('.filter-chips-container') as HTMLElement;
+			if (filterChipsContainer) {
+				this.renderFilterChips(filterChipsContainer);
+			}
 
 			// Get all markdown files, filtered by source folder if specified
 			let files = this.app.vault.getMarkdownFiles();
@@ -277,6 +665,87 @@ export class VisualDashboardView extends ItemView {
 				const content = fileContents.get(f.path) || '';
 				const tags = extractTags(content);
 				return tags.includes(this.filterTag!);
+			});
+		}
+
+		// Apply search filter with operators
+		if (this.filterSearch) {
+			// Get clean query (without operators)
+			const cleanQuery = this.filterSearch
+				.replace(/(tag|color|is|has|type):\S+/gi, '')
+				.trim()
+				.toLowerCase();
+			
+			files = files.filter((f: TFile) => {
+				const content = fileContents.get(f.path) || '';
+				const tags = extractTags(content);
+				
+				// Check text search
+				let matchesText = true;
+				if (cleanQuery) {
+					matchesText = f.basename.toLowerCase().includes(cleanQuery) || 
+								 content.toLowerCase().includes(cleanQuery);
+				}
+				
+				// Check has: operators
+				if (this.filterOperators.has('has')) {
+					const hasValue = this.filterOperators.get('has');
+					if (hasValue === 'tags' && tags.length === 0) return false;
+					if (hasValue === 'content' && content.trim().length === 0) return false;
+				}
+				
+				// Check type: operators
+				if (this.filterOperators.has('type')) {
+					const typeValue = this.filterOperators.get('type');
+					const trimmedContent = content.trim();
+					
+					switch (typeValue) {
+						case 'empty':
+							if (trimmedContent.length > 0) return false;
+							break;
+						case 'image':
+							if (!content.match(/!\[.*?\]\(.*?\)/)) return false;
+							break;
+						case 'link':
+							if (!content.match(/\[.*?\]\(.*?\)|\[\[.*?\]\]/)) return false;
+							break;
+						case 'list':
+							if (!content.match(/^\s*[-*+]\s|^\s*\d+\.\s/m)) return false;
+							break;
+						case 'code':
+							if (!content.match(/```|`[^`]+`/)) return false;
+							break;
+						case 'table':
+							if (!content.match(/\|.*\|/)) return false;
+							break;
+					}
+				}
+				
+				// Check color filters
+				if (this.filterColors.length > 0) {
+					const savedColor = this.plugin.data.noteColors[f.path];
+					if (!savedColor) return false;
+					
+					const colorMatch = this.filterColors.some(filterColor => {
+						const colorMap: Record<string, string> = {
+							'pink': 'pastel-pink',
+							'peach': 'pastel-peach',
+							'yellow': 'pastel-yellow',
+							'green': 'pastel-green',
+							'blue': 'pastel-blue',
+							'purple': 'pastel-purple',
+							'magenta': 'pastel-magenta',
+							'gray': 'pastel-gray'
+						};
+						const expectedColor = colorMap[filterColor];
+						if (!expectedColor) return false;
+						return savedColor.includes(expectedColor);
+					});
+					
+					if (!colorMatch) return false;
+				}
+				
+				return matchesText;
 			});
 		}
 
@@ -367,7 +836,17 @@ export class VisualDashboardView extends ItemView {
 			const content = await this.app.vault.cachedRead(file);
 		const cleanContent = stripMarkdown(content);
 		const previewLength = Math.min(cleanContent.length, MAX_PREVIEW_LENGTH);
-		const previewText = getPreviewText(content, previewLength);
+		
+		// Truncate raw content for preview (keep markdown formatting for proper rendering)
+		let previewText = content;
+		if (content.length > MAX_PREVIEW_LENGTH) {
+			// Find a good break point (end of line) near the limit
+			const truncated = content.substring(0, MAX_PREVIEW_LENGTH);
+			const lastNewline = truncated.lastIndexOf('\n');
+			previewText = lastNewline > MAX_PREVIEW_LENGTH * 0.7 
+				? truncated.substring(0, lastNewline)
+				: truncated;
+		}
 
 		// Dynamic sizing based on content length - more granular
 		const contentLen = cleanContent.length;

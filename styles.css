@@ -79,6 +79,211 @@
     gap: 4px;
 }
 
+/* Search Bar */
+.search-container {
+    position: relative;
+    margin-right: 8px;
+}
+
+.search-wrapper {
+    display: flex;
+    align-items: center;
+    background: var(--background-modifier-form-field);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 4px 8px;
+    transition: all 0.2s ease;
+    width: 280px;
+}
+
+.search-wrapper:focus-within {
+    background: var(--background-primary);
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.search-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    margin-right: 6px;
+    cursor: text;
+}
+
+.search-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.search-input {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    height: auto !important;
+    font-size: 13px !important;
+    color: var(--text-normal);
+    width: 100%;
+    flex: 1;
+}
+
+.search-input:focus {
+    outline: none !important;
+}
+
+.search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.search-clear-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.2s;
+    margin-left: 4px;
+}
+
+.search-clear-btn:hover {
+    color: var(--text-normal);
+}
+
+.search-clear-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Search Suggestions/Autocomplete */
+.search-suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    padding: 4px;
+    display: none;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.search-suggestions.show {
+    display: block;
+}
+
+.search-suggestion-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-normal);
+    transition: background-color 0.1s;
+}
+
+.search-suggestion-item:hover {
+    background: var(--background-modifier-hover);
+}
+
+/* Filter Chips Container */
+.filter-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 8px 0;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: var(--background-modifier-form-field);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 16px;
+    font-size: 12px;
+    color: var(--text-normal);
+    transition: all 0.15s;
+}
+
+.filter-chip:hover {
+    background: var(--background-modifier-hover);
+}
+
+.filter-chip-text {
+    font-weight: 500;
+}
+
+.filter-chip-tag {
+    background: var(--tag-background);
+    color: var(--tag-color);
+    border-color: var(--tag-background);
+}
+
+.filter-chip-color {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.filter-chip-pinned {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.filter-chip-type {
+    background: var(--background-modifier-success);
+    color: var(--text-success);
+    border-color: var(--background-modifier-success);
+}
+
+.filter-chip-clear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+}
+
+.filter-chip-clear:hover {
+    opacity: 1;
+}
+
+.filter-chip-clear svg {
+    width: 12px;
+    height: 12px;
+}
+
+.filter-chip-clear-all {
+    padding: 4px 12px;
+    background: transparent;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+}
+
+.filter-chip-clear-all:hover {
+    background: var(--background-modifier-error);
+    color: var(--text-error);
+    border-color: var(--background-modifier-error);
+}
+
 /* Tag Filter Wrapper */
 .tag-filter-wrapper {
     position: relative;
@@ -481,10 +686,51 @@
     line-height: 1.45;
     color: var(--text-muted);
     overflow: hidden;
+}
+
+/* Code blocks and inline code in preview */
+.card-preview pre {
+    background: var(--code-background);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin: 4px 0;
+    overflow-x: auto;
+    font-size: 11px;
+    line-height: 1.4;
+    max-height: 200px;
+    display: block !important;
+}
+
+/* Hide copy button in code blocks */
+.card-preview .copy-code-button,
+.card-preview button.copy-code-button {
+    display: none !important;
+}
+
+.card-preview code {
+    background: var(--code-background);
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 11px;
+    font-family: var(--font-monospace);
+    color: var(--code-normal);
+}
+
+.card-preview pre code {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+/* Apply line clamp only to paragraphs and text elements, not code blocks */
+.card-preview > p,
+.card-preview > div:not(:has(pre)) {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 15;
     line-clamp: 15;
+    overflow: hidden;
 }
 
 .card-preview-empty {
