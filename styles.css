@@ -751,6 +751,36 @@
     background: var(--background-modifier-hover);
 }
 
+/* Lists in preview - reduce indentation */
+.card-preview ul,
+.card-preview ol {
+    margin: 4px 0;
+    padding-left: 20px;
+}
+
+.card-preview ul ul,
+.card-preview ol ol,
+.card-preview ul ol,
+.card-preview ol ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+
+
+/* Task lists / checkboxes */
+.card-preview .task-list-item {
+    list-style: none;
+    margin-left: 10px;
+    padding-left: 0;
+}
+
+.card-preview input[type="checkbox"] {
+    margin-right: 6px;
+    width: 14px;
+    height: 14px;
+}
+
 /* Apply line clamp only to paragraphs and text elements, not code blocks */
 .card-preview > p,
 .card-preview > div:not(:has(pre)) {
