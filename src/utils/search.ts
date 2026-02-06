@@ -117,6 +117,70 @@ export function getCleanQuery(query: string): string {
 		.toLowerCase();
 }
 
+export function isSimpleTextSearch(query: string): boolean {
+	const hasOperators = /(tag|color|is|has|type):/i.test(query);
+	return !hasOperators && query.trim().length > 0;
+}
+
+export function highlightSearchTerms(element: HTMLElement, searchTerm: string): void {
+	if (!searchTerm || searchTerm.trim().length === 0) return;
+	
+	const term = searchTerm.trim();
+	const walker = document.createTreeWalker(
+		element,
+		NodeFilter.SHOW_TEXT,
+		null
+	);
+	
+	const textNodes: Text[] = [];
+	let node: Node | null;
+	
+	// Collect all text nodes
+	while ((node = walker.nextNode())) {
+		textNodes.push(node as Text);
+	}
+	
+	// Process each text node
+	textNodes.forEach(textNode => {
+		const text = textNode.textContent || '';
+		const lowerText = text.toLowerCase();
+		const lowerTerm = term.toLowerCase();
+		const index = lowerText.indexOf(lowerTerm);
+		
+		if (index !== -1) {
+			const parent = textNode.parentNode;
+			if (!parent) return;
+			
+			// Skip if already highlighted or in certain elements
+			if (parent.nodeName === 'MARK' || parent.nodeName === 'CODE' || parent.nodeName === 'PRE') {
+				return;
+			}
+			
+			// Create highlighted version
+			const before = text.substring(0, index);
+			const match = text.substring(index, index + term.length);
+			const after = text.substring(index + term.length);
+			
+			const fragment = document.createDocumentFragment();
+			
+			if (before) fragment.appendChild(document.createTextNode(before));
+			
+			const mark = document.createElement('mark');
+			mark.className = 'search-highlight';
+			mark.textContent = match;
+			fragment.appendChild(mark);
+			
+			if (after) {
+				// Recursively highlight remaining text
+				const afterNode = document.createTextNode(after);
+				fragment.appendChild(afterNode);
+			}
+			
+			parent.replaceChild(fragment, textNode);
+		}
+	});
+}
+
 export function filterFiles(
 	files: TFile[],
 	fileContents: Map<string, string>,

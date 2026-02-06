@@ -3,7 +3,7 @@ import type VisualDashboardPlugin from './main';
 import { VIEW_TYPE_VISUAL_DASHBOARD } from './utils/types';
 import { extractTags, getPreviewText, stripMarkdown } from './utils/markdown';
 import { formatDate } from './utils/date';
-import { parseSearchOperators, getSearchSuggestions, filterFiles, type SearchState } from './utils/search';
+import { parseSearchOperators, getSearchSuggestions, filterFiles, isSimpleTextSearch, highlightSearchTerms, getCleanQuery, type SearchState } from './utils/search';
 import { FILE_FETCH_MULTIPLIER, DEBOUNCE_REFRESH_MS, MAX_PREVIEW_LENGTH, CARD_SIZE, MAX_CARD_HEIGHT } from './utils/constants';
 
 export class VisualDashboardView extends ItemView {
@@ -607,6 +607,15 @@ export class VisualDashboardView extends ItemView {
 				file.path,
 				this
 			);
+			
+			// Apply search highlighting for simple text searches
+			if (this.filterSearch && isSimpleTextSearch(this.filterSearch)) {
+				const cleanQuery = getCleanQuery(this.filterSearch);
+				if (cleanQuery) {
+					highlightSearchTerms(title, cleanQuery);
+					highlightSearchTerms(previewContainer, cleanQuery);
+				}
+			}
 		} else {
 			cardContent.createEl('p', {
 				text: 'Empty note...',
