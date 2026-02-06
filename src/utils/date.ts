@@ -1,4 +1,3 @@
-// Format timestamp as relative time or absolute date
 export function formatDate(timestamp: number): string {
 	const date = new Date(timestamp);
 	const now = new Date();

@@ -1,10 +1,15 @@
 // Extract tags from markdown content
 export function extractTags(content: string): string[] {
+	// First, remove code blocks (``` ... ```) and inline code (` ... `)
+	const contentWithoutCode = content
+		.replace(/```[\s\S]*?```/g, '') // Remove code blocks
+		.replace(/`[^`]*`/g, ''); // Remove inline code
+	
 	const tagRegex = /(?:^|\s)#([a-zA-Z][a-zA-Z0-9_-]*)/g;
 	const tags: string[] = [];
 	let match;
 
-	while ((match = tagRegex.exec(content)) !== null) {
+	while ((match = tagRegex.exec(contentWithoutCode)) !== null) {
 		const tag = '#' + match[1];
 		if (!tags.includes(tag)) {
 			tags.push(tag);

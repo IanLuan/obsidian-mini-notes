@@ -7,6 +7,7 @@ export interface DashboardData {
 	noteOrder: string[]; 
 	viewTitle: string; 
 	sourceFolder: string; 
+	createFolder: string;
 	maxNotes: number;
 	noteColors: Record<string, string>;
 	themeColor: 'obsidian' | 'black' | 'custom';
@@ -18,6 +19,7 @@ export const DEFAULT_DATA: DashboardData = {
 	noteOrder: [],
 	viewTitle: 'Do Your Best Today!',
 	sourceFolder: '/',
+	createFolder: 'Mini Notes',
 	maxNotes: 150,
 	noteColors: {},
 	themeColor: 'obsidian',

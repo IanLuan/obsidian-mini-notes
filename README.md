@@ -5,15 +5,20 @@ Review them later in a colorful Google Keep-style card-based view, where you can
 - view your notes in a google keep-notes similar layout
 - change the bg color of your notes!
 - pin your most important notes
-- filter your notes based on their tags!
+- filter your notes based on their tags, folder, color, type.
+	- **Example:**    `folder:projects`  `color:yellow`   `tag:cs`
 
-**Light Theme**
+<!-- **Light Theme** -->
 
-![Masonry View](src/imgs/light-theme.png)
+![Light Theme](src/imgs/light-theme.png)
 
-**Dark Theme**
+<!-- **Dark Theme** -->
 
-![Masonry View](src/imgs/dark-theme.png)
+![Dark Theme](src/imgs/dark-theme.png)
+
+**Aligns with whatever theme you have!**
+
+![Other Themes](src/imgs/other-themes.jpg)
 
 ### **IOS & Android Mobile Support**
 <img src="src/imgs/android.jpeg" alt="Android View" height="500" />
@@ -26,30 +31,35 @@ Review them later in a colorful Google Keep-style card-based view, where you can
 ---
 
 ### Creating a New Mini Note
-- Recommended Hotkey: `Ctrl + [`
-- Use the command palette and search for "Mini Notes: Create new mini note"
+- Click on the icon in the cards view
+- Search for "Mini Notes: Create new mini note"
 - Notes are created in the "Mini Notes" folder by default (configurable in settings)
+- Recommended Hotkey: `Ctrl + [`
 
-### Opening the Masonry View
-- Recommended Hotkey: `Ctrl + ]`
+### Opening the Cards View
 - Click the grid icon in the left ribbon, or
-- Use the command palette `(Ctrl/Cmd + P)` and search for "Mini Notes: Open view"
-- The view will intially load all notes (change the Source folder later on from the settings)
-
-### Working with Notes
-- Click any card to open the note in the editor
-- Click the pin icon to pin/unpin a note
-- Drag cards to reorder them
-- Click tags in the filter dropdown to filter by specific tags
-- Click the pin filter icon to show only pinned notes
+- Search for "Mini Notes: Open view"
+- The view will intially load all notes (configurable in settings)
+- Recommended Hotkey: `Ctrl + ]`
 
 ### Customizing the View
 - Edit the title by clicking on it directly
-- Open **Settings → Mini Notes** to configure:
-  - View title (shown at the top of the dashboard)
-  - Source folder (where notes are loaded from)
+- Drag cards to reorder them
+- **Settings → Mini Notes** to configure:
+  - Source folder (where notes are fetched from)
+  - Create folder (where new mini notes will be saved)
   - Maximum notes to display (default: 150)
   - Theme color preferences
+
+### Filtering: within the search bar
+- search for normal text, using the smart search or
+- filter by: **(folder:, tag:, color:, type:, is:, has:)**
+	- `folder:` and see all available folders
+	- `tag:` and see all available tags
+	- `color:` and see all color options
+	- `type:` and see all content type options
+	- `is`: is:pinned or is:unpinned
+
 
 Don't forget to give it a ⭐ on [GitHub](https://github.com/rknastenka/mini-notes) to help others discover it!
 

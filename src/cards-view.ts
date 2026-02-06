@@ -1,9 +1,10 @@
 import { ItemView, TFile, WorkspaceLeaf, setIcon, MarkdownRenderer } from 'obsidian';
-import type VisualDashboardPlugin from '../main';
-import { VIEW_TYPE_VISUAL_DASHBOARD } from '../types';
-import { extractTags, getPreviewText, stripMarkdown } from '../utils/markdown';
-import { formatDate } from '../utils/date';
-import { FILE_FETCH_MULTIPLIER, DEBOUNCE_REFRESH_MS, MAX_PREVIEW_LENGTH, CARD_SIZE, MAX_CARD_HEIGHT } from '../constants';
+import type VisualDashboardPlugin from './main';
+import { VIEW_TYPE_VISUAL_DASHBOARD } from './utils/types';
+import { extractTags, getPreviewText, stripMarkdown } from './utils/markdown';
+import { formatDate } from './utils/date';
+import { parseSearchOperators, getSearchSuggestions, filterFiles, isSimpleTextSearch, highlightSearchTerms, getCleanQuery, type SearchState } from './utils/search';
+import { FILE_FETCH_MULTIPLIER, DEBOUNCE_REFRESH_MS, MAX_PREVIEW_LENGTH, CARD_SIZE, MAX_CARD_HEIGHT } from './utils/constants';
 
 export class VisualDashboardView extends ItemView {
 	private miniNotesGrid!: HTMLElement;
@@ -17,7 +18,16 @@ export class VisualDashboardView extends ItemView {
 	// Filter state
 	private filterPinned: 'all' | 'pinned' | 'unpinned' = 'all';
 	private filterTag: string | null = null;
+	private filterFolder: string | null = null;
+	private filterSearch: string = '';
 	private allTags: string[] = [];
+	private allFolders: string[] = [];
+	private filterColors: string[] = [];
+	private filterOperators: Map<string, string> = new Map();
+	private searchSuggestionsEl: HTMLElement | null = null;
+	private selectedSuggestionIndex: number = -1;
+	private currentSuggestions: Array<{ type: string; value: string; display: string }> = [];
+	private currentSuggestionQuery: string = '';
 
 	constructor(leaf: WorkspaceLeaf, plugin: VisualDashboardPlugin) {
 		super(leaf);
@@ -78,52 +88,107 @@ export class VisualDashboardView extends ItemView {
 		// Controls on right
 		const controls = header.createDiv({ cls: 'header-controls' });
 
-		// Tag filter - icon with dropdown
-		const tagWrapper = controls.createDiv({ cls: 'tag-filter-wrapper' });
-		const tagIcon = tagWrapper.createDiv({ cls: 'filter-icon tag-filter-button' });
-		setIcon(tagIcon, 'tag');
-
-		// Create dropdown menu
-		const dropdown = tagWrapper.createDiv({ cls: 'tag-dropdown-menu' });
+		// Search bar with autocomplete
+		const searchContainer = controls.createDiv({ cls: 'search-container' });
+		const searchWrapper = searchContainer.createDiv({ cls: 'search-wrapper' });
+		const searchIcon = searchWrapper.createDiv({ cls: 'search-icon' });
+		setIcon(searchIcon, 'search');
 		
-		// Add "All tags" option
-		const allOption = dropdown.createDiv({ cls: 'tag-dropdown-item' });
-		allOption.textContent = 'All tags';
-		allOption.addEventListener('click', () => {
-			this.filterTag = null;
-			tagIcon.toggleClass('active', false);
-			dropdown.toggleClass('show', false);
+		const searchInput = searchWrapper.createEl('input', { 
+			type: 'text', 
+			placeholder: 'Search notes (try folder:, tag:, color:, type:, is:pinned)',
+			cls: 'search-input'
+		});
+		
+		searchInput.value = this.filterSearch;
+		
+		// Clear button
+		const clearBtn = searchWrapper.createDiv({ cls: 'search-clear-btn' });
+		setIcon(clearBtn, 'x');
+		clearBtn.style.display = this.filterSearch ? 'flex' : 'none';
+		
+		clearBtn.addEventListener('click', () => {
+			searchInput.value = '';
+			this.filterSearch = '';
+			clearBtn.style.display = 'none';
+			this.clearAllFilters();
 			void this.renderCards();
 		});
-
-		// Toggle dropdown on click
-		tagIcon.addEventListener('click', (e: MouseEvent) => {
-			e.stopPropagation();
-			const isCurrentlyShown = dropdown.hasClass('show');
-			dropdown.toggleClass('show', !isCurrentlyShown);
-			if (!isCurrentlyShown) {
-				void this.populateTagDropdown(dropdown, tagIcon);
+		
+		// Focus search on icon click
+		searchIcon.addEventListener('click', () => {
+			searchInput.focus();
+		});
+		
+		// Autocomplete suggestions dropdown
+		this.searchSuggestionsEl = searchContainer.createDiv({ cls: 'search-suggestions' });
+		
+		// Show initial suggestions on focus
+		searchInput.addEventListener('focus', () => {
+			if (!searchInput.value) {
+				this.updateSearchSuggestions('');
+			}
+		});
+		
+		// Event listeners for search
+		searchInput.addEventListener('input', (e) => {
+			const target = e.target as HTMLInputElement;
+			this.filterSearch = target.value;
+			clearBtn.style.display = target.value ? 'flex' : 'none';
+			
+			// Show suggestions
+			this.updateSearchSuggestions(target.value);
+			
+			// Parse operators and use debounced refresh
+			this.updateSearchState(target.value);
+			this.debouncedRefresh();
+		});
+		
+		// Close suggestions on blur
+		searchInput.addEventListener('blur', () => {
+			setTimeout(() => {
+				if (this.searchSuggestionsEl) {
+					this.searchSuggestionsEl.empty();
+					this.searchSuggestionsEl.removeClass('show');
+				}
+			}, 200);
+		});
+		
+		// Handle keyboard navigation in suggestions
+		searchInput.addEventListener('keydown', (e: KeyboardEvent) => {
+			if (!this.searchSuggestionsEl || !this.searchSuggestionsEl.hasClass('show')) {
+				return;
+			}
+			
+			const suggestions = this.searchSuggestionsEl.querySelectorAll('.search-suggestion-item');
+			if (suggestions.length === 0) return;
+			
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				this.selectedSuggestionIndex = Math.min(this.selectedSuggestionIndex + 1, suggestions.length - 1);
+				this.highlightSuggestion(suggestions);
+			} else if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				this.selectedSuggestionIndex = Math.max(this.selectedSuggestionIndex - 1, 0);
+				this.highlightSuggestion(suggestions);
+			} else if (e.key === 'Enter' && this.selectedSuggestionIndex >= 0) {
+				e.preventDefault();
+				const selectedSuggestion = this.currentSuggestions[this.selectedSuggestionIndex];
+				if (selectedSuggestion) {
+					this.applySuggestion(this.currentSuggestionQuery, selectedSuggestion);
+				}
+			} else if (e.key === 'Escape') {
+				this.searchSuggestionsEl.empty();
+				this.searchSuggestionsEl.removeClass('show');
+				this.selectedSuggestionIndex = -1;
 			}
 		});
 
-		// Close dropdown when clicking outside
-		this.registerDomEvent(document, 'click', () => {
-			dropdown.toggleClass('show', false);
-		});
-
-		// Pin toggle icon
-		const pinToggle = controls.createDiv({ cls: 'filter-icon' });
-		setIcon(pinToggle, 'pin');
-		pinToggle.setAttribute('aria-label', 'Show pinned only');
-		pinToggle.addEventListener('click', () => {
-			if (this.filterPinned === 'all') {
-				this.filterPinned = 'pinned';
-				pinToggle.addClass('active');
-			} else {
-				this.filterPinned = 'all';
-				pinToggle.removeClass('active');
-			}
-			void this.renderCards();
+		// Create new note button
+		const createBtn = controls.createDiv({ cls: 'create-note-btn', attr: { 'aria-label': 'Create new mini note' } });
+		setIcon(createBtn, 'plus');
+		createBtn.addEventListener('click', async () => {
+			await this.plugin.createMiniNote();
 		});
 
 		// Create mini notes grid container
@@ -156,6 +221,9 @@ export class VisualDashboardView extends ItemView {
 		this.registerEvent(
 			this.app.vault.on('delete', () => this.debouncedRefresh())
 		);
+		this.registerEvent(
+			this.app.vault.on('rename', () => this.debouncedRefresh())
+		);
 	}
 
 	private async refreshView() {
@@ -172,28 +240,6 @@ export class VisualDashboardView extends ItemView {
 		await this.renderCards();
 	}
 
-	private populateTagDropdown(dropdown: HTMLElement, tagIcon: HTMLElement) {
-		this.renderTagDropdownItems(dropdown, tagIcon);
-	}
-
-	private renderTagDropdownItems(dropdown: HTMLElement, tagIcon: HTMLElement) {
-		// Remove existing tag items (keep "All tags" option)
-		const existingTags = dropdown.querySelectorAll('.tag-dropdown-item:not(:first-child)');
-		existingTags.forEach(el => el.remove());
-
-		this.allTags.forEach(tag => {
-			const item = dropdown.createDiv({ cls: 'tag-dropdown-item tag-pill' });
-			item.textContent = tag;
-			item.addEventListener('click', (e: MouseEvent) => {
-				e.stopPropagation();
-				this.filterTag = tag;
-				tagIcon.toggleClass('active', true);
-				dropdown.toggleClass('show', false);
-				void this.renderCards();
-			});
-		});
-	}
-
 	private debouncedRefresh() {
 		if (this.refreshTimeoutId !== null) {
 			window.clearTimeout(this.refreshTimeoutId);
@@ -203,6 +249,106 @@ export class VisualDashboardView extends ItemView {
 			void this.renderCards();
 			this.refreshTimeoutId = null;
 		}, DEBOUNCE_REFRESH_MS);
+	}
+
+	private updateSearchState(query: string) {
+		const parsed = parseSearchOperators(query);
+		this.filterTag = parsed.filterTag;
+		this.filterPinned = parsed.filterPinned;
+		this.filterColors = parsed.filterColors;
+		this.filterFolder = parsed.filterFolder;
+		this.filterOperators = parsed.filterOperators;
+	}
+
+	private updateSearchSuggestions(query: string) {
+		if (!this.searchSuggestionsEl) return;
+		
+		this.searchSuggestionsEl.empty();
+		this.selectedSuggestionIndex = -1;
+		this.currentSuggestionQuery = query;
+		
+		const suggestions = getSearchSuggestions(query, this.allTags, this.allFolders);
+		this.currentSuggestions = suggestions;
+		
+		if (suggestions.length > 0) {
+			suggestions.forEach((suggestion, index) => {
+				const suggestionEl = this.searchSuggestionsEl!.createDiv({ cls: 'search-suggestion-item' });
+				suggestionEl.textContent = suggestion.display;
+				suggestionEl.addEventListener('mouseenter', () => {
+					this.selectedSuggestionIndex = index;
+					const allSuggestions = this.searchSuggestionsEl!.querySelectorAll('.search-suggestion-item');
+					this.highlightSuggestion(allSuggestions);
+				});
+				suggestionEl.addEventListener('mousedown', (e) => {
+					e.preventDefault();
+					this.applySuggestion(query, suggestion);
+				});
+			});
+			this.searchSuggestionsEl.addClass('show');
+		} else {
+			this.searchSuggestionsEl.removeClass('show');
+		}
+	}
+
+	private highlightSuggestion(suggestions: NodeListOf<Element>) {
+		suggestions.forEach((el, idx) => {
+			if (idx === this.selectedSuggestionIndex) {
+				el.addClass('selected');
+			} else {
+				el.removeClass('selected');
+			}
+		});
+	}
+
+	private applySuggestion(query: string, suggestion: { type: string; value: string; display: string }) {
+		const words = query.split(' ');
+		words[words.length - 1] = suggestion.value;
+		// Only add space if it's an incomplete operator (doesn't contain a value after :)
+		const isIncompleteOperator = suggestion.value.endsWith(':');
+		const newQuery = words.join(' ') + (isIncompleteOperator ? '' : ' ');
+		const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+		if (searchInput) {
+			searchInput.value = newQuery;
+			this.filterSearch = newQuery;
+			// Always update search state and refresh (unless it's an incomplete operator)
+			if (!isIncompleteOperator) {
+				this.updateSearchState(newQuery);
+				this.debouncedRefresh();
+			}
+			this.searchSuggestionsEl?.empty();
+			this.searchSuggestionsEl?.removeClass('show');
+			this.selectedSuggestionIndex = -1;
+			searchInput.focus();
+		}
+	}
+
+	private clearAllFilters() {
+		this.filterSearch = '';
+		this.filterTag = null;
+		this.filterFolder = null;
+		this.filterPinned = 'all';
+		this.filterColors = [];
+		this.filterOperators.clear();
+		
+		const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+		if (searchInput) {
+			searchInput.value = '';
+		}
+		
+		const clearBtn = this.contentEl.querySelector('.search-clear-btn') as HTMLElement;
+		if (clearBtn) {
+			clearBtn.style.display = 'none';
+		}
+		
+		const pinToggle = this.contentEl.querySelector('.filter-icon[aria-label*=\"pinned\"]') as HTMLElement;
+		if (pinToggle) {
+			pinToggle.removeClass('active');
+		}
+		
+		const filterChipsContainer = this.contentEl.querySelector('.filter-chips-container') as HTMLElement;
+		if (filterChipsContainer) {
+			filterChipsContainer.style.display = 'none';
+		}
 	}
 
 	private applyThemeColor() {
@@ -264,21 +410,33 @@ export class VisualDashboardView extends ItemView {
 
 		this.allTags = Array.from(tagSet).sort();
 
-		// Apply pinned filter
-		if (this.filterPinned === 'pinned') {
-			files = files.filter((f: TFile) => this.plugin.isPinned(f.path));
-		} else if (this.filterPinned === 'unpinned') {
-			files = files.filter((f: TFile) => !this.plugin.isPinned(f.path));
-		}
+		// Get all folders in vault for folder suggestions
+		const folderSet = new Set<string>();
+		folderSet.add('/'); // Add root
+		this.app.vault.getAllLoadedFiles().forEach(file => {
+			if ('children' in file && file.children !== undefined) {
+				if (file.path) folderSet.add(file.path);
+			}
+		});
+		this.allFolders = Array.from(folderSet).sort();
 
-		// Apply tag filter
-		if (this.filterTag) {
-			files = files.filter((f: TFile) => {
-				const content = fileContents.get(f.path) || '';
-				const tags = extractTags(content);
-				return tags.includes(this.filterTag!);
-			});
-		}
+		// Apply all filters using search module
+		const searchState: SearchState = {
+			query: this.filterSearch,
+			filterTag: this.filterTag,
+			filterPinned: this.filterPinned,
+			filterColors: this.filterColors,
+			filterFolder: this.filterFolder,
+			filterOperators: this.filterOperators
+		};
+		
+		files = filterFiles(
+			files,
+			fileContents,
+			searchState,
+			(path) => this.plugin.isPinned(path),
+			(path) => this.plugin.data.noteColors[path]
+		);
 
 		// Limit after filtering
 		files = files.slice(0, this.plugin.data.maxNotes);
@@ -367,22 +525,53 @@ export class VisualDashboardView extends ItemView {
 			const content = await this.app.vault.cachedRead(file);
 		const cleanContent = stripMarkdown(content);
 		const previewLength = Math.min(cleanContent.length, MAX_PREVIEW_LENGTH);
-		const previewText = getPreviewText(content, previewLength);
-
-		// Dynamic sizing based on content length - more granular
-		const contentLen = cleanContent.length;
-		if (contentLen > CARD_SIZE.XL) {
-			card.addClass('card-xl');
-		} else if (contentLen > CARD_SIZE.LARGE) {
-			card.addClass('card-large');
-		} else if (contentLen > CARD_SIZE.MEDIUM) {
-			card.addClass('card-medium');
-		} else if (contentLen > CARD_SIZE.SMALL) {
-			card.addClass('card-small');
-		} else {
-			card.addClass('card-xs');
+		
+		// Truncate raw content for preview (keep markdown formatting for proper rendering)
+		let previewText = content;
+		if (content.length > MAX_PREVIEW_LENGTH) {
+			// Find a good break point (end of line) near the limit
+			const truncated = content.substring(0, MAX_PREVIEW_LENGTH);
+			const lastNewline = truncated.lastIndexOf('\n');
+			previewText = lastNewline > MAX_PREVIEW_LENGTH * 0.7 
+				? truncated.substring(0, lastNewline)
+				: truncated;
 		}
-
+		
+		// Remove Obsidian tags from preview (they're shown in the footer)
+		// split by lines and only remove tags outside code blocks
+		const lines = previewText.split('\n');
+		let inCodeBlock = false;
+		const processedLines = lines.map(line => {
+			// Check if we're entering/exiting a code block
+			if (line.trim().startsWith('```')) {
+				inCodeBlock = !inCodeBlock;
+				return line; // Keep the line as-is
+			}
+			
+			// If we're in a code block, don't touch anything
+			if (inCodeBlock) {
+				return line;
+			}
+			
+			// If we're outside code blocks, remove Obsidian tags but preserve inline code
+			// First protect inline code
+			const inlineCodeParts: string[] = [];
+			let tempLine = line.replace(/`[^`]+`/g, (match) => {
+				inlineCodeParts.push(match);
+				return `\u200B${inlineCodeParts.length - 1}\u200B`;
+			});
+			
+			// Remove Obsidian tags (space + # + alphanumeric)
+			tempLine = tempLine.replace(/(\s)#[a-zA-Z][a-zA-Z0-9_-]*/g, '$1');
+			tempLine = tempLine.replace(/^#[a-zA-Z][a-zA-Z0-9_-]*/g, '');
+			
+			// Restore inline code
+			tempLine = tempLine.replace(/\u200B(\d+)\u200B/g, (_, idx) => inlineCodeParts[parseInt(idx)] || '');
+			
+			return tempLine;
+		});
+		
+		previewText = processedLines.join('\n');
 		// Check if pinned
 		const isPinned = this.plugin.isPinned(file.path);
 		if (isPinned) {
@@ -500,6 +689,15 @@ export class VisualDashboardView extends ItemView {
 				file.path,
 				this
 			);
+			
+			// Apply search highlighting for simple text searches
+			if (this.filterSearch && isSimpleTextSearch(this.filterSearch)) {
+				const cleanQuery = getCleanQuery(this.filterSearch);
+				if (cleanQuery) {
+					highlightSearchTerms(title, cleanQuery);
+					highlightSearchTerms(previewContainer, cleanQuery);
+				}
+			}
 		} else {
 			cardContent.createEl('p', {
 				text: 'Empty note...',

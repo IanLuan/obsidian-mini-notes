@@ -60,6 +60,7 @@
     margin-bottom: 14px;
     padding-bottom: 10px;
     border-bottom: 1px solid var(--background-modifier-border);
+    gap: 12px;
 }
 
 .dashboard-title {
@@ -67,6 +68,11 @@
     font-size: 15px;
     font-weight: 500;
     color: var(--text-normal);
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .dashboard-title.editable-title {
@@ -77,6 +83,246 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    flex: 0 0 auto;
+}
+
+/* Create Note Button */
+.create-note-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    color: var(--text-muted);
+    background: var(--background-modifier-form-field);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.create-note-btn:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.create-note-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Search Bar */
+.search-container {
+    position: relative;
+    margin-right: 8px;
+}
+
+.search-wrapper {
+    display: flex;
+    align-items: center;
+    background: var(--background-modifier-form-field);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 4px 8px;
+    transition: all 0.2s ease;
+    width: 280px;
+}
+
+.search-wrapper:focus-within {
+    background: var(--background-primary);
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.search-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    margin-right: 6px;
+    cursor: text;
+}
+
+.search-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.search-input {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    height: auto !important;
+    font-size: 13px !important;
+    color: var(--text-normal);
+    width: 100%;
+    flex: 1;
+}
+
+.search-input:focus {
+    outline: none !important;
+}
+
+.search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.search-clear-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.2s;
+    margin-left: 4px;
+}
+
+.search-clear-btn:hover {
+    color: var(--text-normal);
+}
+
+.search-clear-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Search Suggestions/Autocomplete */
+.search-suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    padding: 4px;
+    display: none;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.search-suggestions.show {
+    display: block;
+}
+
+.search-suggestion-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-normal);
+    transition: background-color 0.1s;
+}
+
+.search-suggestion-item:hover,
+.search-suggestion-item.selected {
+    background: var(--background-modifier-hover);
+}
+
+/* Search Highlighting */
+.search-highlight {
+    background: var(--text-highlight-bg);
+    color: var(--text-normal);
+    padding: 1px 2px;
+    border-radius: 2px;
+    font-weight: 500;
+}
+
+/* Filter Chips Container */
+.filter-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 8px 0;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: var(--background-modifier-form-field);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 16px;
+    font-size: 12px;
+    color: var(--text-normal);
+    transition: all 0.15s;
+}
+
+.filter-chip:hover {
+    background: var(--background-modifier-hover);
+}
+
+.filter-chip-text {
+    font-weight: 500;
+}
+
+.filter-chip-tag {
+    background: var(--tag-background);
+    color: var(--tag-color);
+    border-color: var(--tag-background);
+}
+
+.filter-chip-color {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.filter-chip-pinned {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.filter-chip-type {
+    background: var(--background-modifier-success);
+    color: var(--text-success);
+    border-color: var(--background-modifier-success);
+}
+
+.filter-chip-clear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+}
+
+.filter-chip-clear:hover {
+    opacity: 1;
+}
+
+.filter-chip-clear svg {
+    width: 12px;
+    height: 12px;
+}
+
+.filter-chip-clear-all {
+    padding: 4px 12px;
+    background: transparent;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+}
+
+.filter-chip-clear-all:hover {
+    background: var(--background-modifier-error);
+    color: var(--text-error);
+    border-color: var(--background-modifier-error);
 }
 
 /* Tag Filter Wrapper */
@@ -438,10 +684,7 @@
     line-height: 1.35;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
 }
 
 /* Google Keep-inspired text styling for colored cards in dark theme */
@@ -465,6 +708,12 @@
     border: 1px solid rgba(232, 234, 237, 0.2);
 }
 
+/* Tags on cards without custom color in dark theme */
+.theme-dark .dashboard-card:not([style*="background-color"]) .card-tag {
+    color: #E8EAED;
+    background: rgba(232, 234, 237, 0.1);
+}
+
 /* ============================================
    Card Content
    ============================================ */
@@ -481,10 +730,150 @@
     line-height: 1.45;
     color: var(--text-muted);
     overflow: hidden;
+}
+
+/* Code blocks and inline code in preview */
+.card-preview pre {
+    background: var(--code-background);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin: 4px 0;
+    overflow-x: auto;
+    font-size: 11px;
+    line-height: 1.4;
+    max-height: 300px;
+    display: block !important;
+}
+
+/* Hide copy button in code blocks */
+.card-preview .copy-code-button,
+.card-preview button.copy-code-button {
+    display: none !important;
+}
+
+.card-preview code {
+    background: var(--code-background);
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 11px;
+    font-family: var(--font-monospace);
+    color: var(--code-normal);
+}
+
+.card-preview pre code {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+/* Tables in preview */
+.card-preview table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+    font-size: 11px;
+    display: table !important;
+}
+
+.card-preview table th,
+.card-preview table td {
+    border: 1px solid var(--background-modifier-border);
+    padding: 4px 8px;
+    text-align: left;
+}
+
+.card-preview table th {
+    background: var(--background-secondary);
+    font-weight: 600;
+}
+
+.card-preview table tr:hover {
+    background: var(--background-modifier-hover);
+}
+
+/* Lists in preview - reduce indentation */
+.card-preview ul,
+.card-preview ol {
+    margin: 4px 0;
+    padding-left: 20px;
+}
+
+.card-preview ul ul,
+.card-preview ol ol,
+.card-preview ul ol,
+.card-preview ol ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+
+
+/* Task lists / checkboxes */
+.card-preview .task-list-item {
+    list-style: none;
+    margin-left: 10px;
+    padding-left: 0;
+}
+
+.card-preview input[type="checkbox"] {
+    margin-right: 6px;
+    width: 14px;
+    height: 14px;
+}
+
+/* Apply line clamp only to paragraphs and text elements, not code blocks */
+.card-preview > p,
+.card-preview > div:not(:has(pre)) {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 15;
     line-clamp: 15;
+    overflow: hidden;
+}
+
+/* PDF embeds and internal embeds - maintain aspect ratio with scrollbar on overflow */
+.card-preview .internal-embed {
+    max-height: 300px;
+    max-width: 100%;
+    overflow: auto;
+    display: block;
+    position: relative;
+}
+
+.card-preview .pdf-embed {
+    display: block;
+    width: 100%;
+    height: 400px; /* Minimized viewing window height */
+    overflow-y: auto !important; /* Force scrollbar on container */
+    overflow-x: auto;
+    background-color: var(--background-secondary);
+}
+
+.card-preview .internal-embed iframe {
+    width: 100%;
+    min-height: 300px;
+    display: block;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+}
+
+.card-preview .pdf-embed iframe,
+.card-preview iframe[src$=".pdf"] {
+    /* Optimized PDF View Logic:
+       1. Use 200vh height (reduced from 400vh) to render multiple pages while minimizing max height
+       2. Scale down to 0.6 for a zoomed out base view
+       3. Compensate width (166.667%) for the scale factor
+       4. Adjusted negative margin to minimize wasted space
+    */
+    width: 166.667%;
+    height: 200vh; 
+    border: none;
+    transform: scale(0.6);
+    transform-origin: 0 0;
+    display: block;
+    /* Reduce excess whitespace: 200vh * 0.4 = 80vh empty space */
+    margin-bottom: -80vh;
 }
 
 .card-preview-empty {
@@ -589,4 +978,145 @@
 .card-pin-btn:focus-visible {
     outline: 2px solid var(--masonry-theme-color, var(--interactive-accent));
     opacity: 1;
+}
+
+/* ============================================
+   Mobile Responsive Styles
+   ============================================ */
+
+/* Tablet and below - adjust search bar */
+@media (max-width: 799px) {
+    .search-wrapper {
+        width: 200px;
+    }
+}
+
+/* Mobile - stack header */
+@media (max-width: 599px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding-bottom: 12px;
+    }
+    
+    .dashboard-title {
+        font-size: 15px;
+        flex: none;
+        width: 100%;
+    }
+    
+    .header-controls {
+        width: 100%;
+        justify-content: space-between;
+        flex: none;
+    }
+    
+    .search-container {
+        flex: 1 1 auto;
+        margin-right: 0;
+    }
+    
+    .search-wrapper {
+        width: 100%;
+    }
+    
+    .create-note-btn {
+        flex: 0 0 auto;
+    }
+}
+
+/* Small mobile - further adjustments */
+@media (max-width: 420px) {
+    .visual-dashboard-container {
+        padding: 12px 16px;
+    }
+    
+    .dashboard-header {
+        margin-bottom: 12px;
+    }
+    
+    .dashboard-title {
+        font-size: 14px;
+    }
+    
+    .search-input {
+        font-size: 14px;
+    }
+    
+    .search-input::placeholder {
+        font-size: 13px;
+    }
+}
+
+/* ============================================
+   Mobile Responsive Styles
+   ============================================ */
+
+/* Tablet and below - adjust search bar */
+@media (max-width: 799px) {
+    .search-wrapper {
+        width: 220px;
+    }
+    
+    .dashboard-title {
+        font-size: 14px;
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+/* Mobile - stack header and make search full width */
+@media (max-width: 599px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding-bottom: 12px;
+    }
+    
+    .dashboard-title {
+        font-size: 15px;
+        max-width: none;
+        width: 100%;
+    }
+    
+    .header-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .search-container {
+        flex: 1;
+        margin-right: 0;
+    }
+    
+    .search-wrapper {
+        width: 100%;
+    }
+}
+
+/* Small mobile - further adjustments */
+@media (max-width: 420px) {
+    .visual-dashboard-container {
+        padding: 12px 16px;
+    }
+    
+    .dashboard-header {
+        margin-bottom: 12px;
+    }
+    
+    .dashboard-title {
+        font-size: 14px;
+    }
+    
+    .search-input {
+        font-size: 14px;
+    }
+    
+    .search-input::placeholder {
+        font-size: 13px;
+    }
 }
