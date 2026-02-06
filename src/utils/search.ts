@@ -101,7 +101,7 @@ export function getSearchSuggestions(query: string, allTags: string[], allFolder
 
 	// Show type suggestions when typing type:
 	if (lastWord.startsWith('type:')) {
-		const types = ['empty', 'image', 'link', 'list', 'code', 'table'];
+		const types = ['empty', 'image', 'pdf', 'link', 'list', 'code', 'table'];
 		const typePrefix = lastWord.substring(5).toLowerCase();
 		const matchingTypes = types.filter(t => t.startsWith(typePrefix));
 
@@ -268,19 +268,33 @@ export function filterFiles(
 						if (trimmedContent.length > 0) return false;
 						break;
 					case 'image':
-						if (!content.match(/!\[.*?\]\(.*?\)/)) return false;
+						// Match markdown images with image extensions
+						// Supports: ![](image.jpg), ![[image.png]], and common image formats
+						if (!content.match(/!\[.*?\]\([^)]*\.(png|jpg|jpeg|gif|bmp|svg|webp)[^)]*\)|!\[\[[^\]]*\.(png|jpg|jpeg|gif|bmp|svg|webp)[^\]]*\]\]/i)) return false;
+						break;
+					case 'pdf':
+						// Match markdown embeds with PDF extensions
+						// Supports: ![](document.pdf), ![[document.pdf]], [](document.pdf), [[document.pdf]]
+						if (!content.match(/!?\[.*?\]\([^)]*\.pdf[^)]*\)|!?\[\[[^\]]*\.pdf[^\]]*\]\]/i)) return false;
 						break;
 					case 'link':
-						if (!content.match(/\[.*?\]\(.*?\)|\[\[.*?\]\]/)) return false;
+						// Match links to pages, excluding images and PDFs
+						// Excludes: links with ! prefix (embeds) and links to image/PDF files
+						const linkPattern = new RegExp(
+							'(?<!!)\\[.*?\\]\\((?![^)]*\\.(png|jpg|jpeg|gif|bmp|svg|webp|pdf)\\b)[^)]+\\)|' +
+							'(?<!!)\\[\\[(?![^\\]]*\\.(png|jpg|jpeg|gif|bmp|svg|webp|pdf)\\b)[^\\]]+\\]\\]',
+							'i'
+						);
+						if (!content.match(linkPattern)) return false;
 						break;
 					case 'list':
 						if (!content.match(/^\s*[-*+]\s|^\s*\d+\.\s/m)) return false;
 						break;
 					case 'code':
-						if (!content.match(/```|`[^`]+`/)) return false;
+						if (!content.match(/```[\s\S]*?```|`[^`|]+`/)) return false;
 						break;
 					case 'table':
-						if (!content.match(/\|.*\|/)) return false;
+						if (!content.match(/\|[^\n]*\|\n\|[\s:|-]+\|/)) return false;
 						break;
 				}
 			}
