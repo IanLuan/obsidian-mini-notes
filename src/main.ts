@@ -1,6 +1,6 @@
 import { Plugin, WorkspaceLeaf, addIcon, Notice, normalizePath } from 'obsidian';
-import { DashboardData, DEFAULT_DATA, VIEW_TYPE_VISUAL_DASHBOARD, DASHBOARD_ICON } from './types';
-import { VisualDashboardView } from './views/dashboard-view';
+import { DashboardData, DEFAULT_DATA, VIEW_TYPE_VISUAL_DASHBOARD, DASHBOARD_ICON } from './utils/types';
+import { VisualDashboardView } from './cards-view';
 import { MiniNotesSettingTab } from './settings';
 
 export default class VisualDashboardPlugin extends Plugin {
@@ -155,8 +155,16 @@ export default class VisualDashboardPlugin extends Plugin {
 			const folder = this.app.vault.getAbstractFileByPath(folderPath);
 			
 			if (!folder) {
-				await this.app.vault.createFolder(folderPath);
-				new Notice('Mini notes folder created');
+				try {
+					await this.app.vault.createFolder(folderPath);
+					new Notice('Mini notes folder created');
+				} catch (createError) {
+					// Ignore if folder already exists (race condition)
+					const errorMessage = createError instanceof Error ? createError.message : String(createError);
+					if (!errorMessage.includes('already exists')) {
+						throw createError;
+					}
+				}
 			}
 		} catch (error) {
 			console.error('Error creating Mini Notes folder:', error);
@@ -170,7 +178,15 @@ export default class VisualDashboardPlugin extends Plugin {
 			
 			// Ensure folder exists (skip if root folder)
 			if (folderPath !== '/' && !this.app.vault.getAbstractFileByPath(folderPath)) {
-				await this.app.vault.createFolder(folderPath);
+				try {
+					await this.app.vault.createFolder(folderPath);
+				} catch (createError) {
+					// Ignore if folder already exists (race condition)
+					const errorMessage = createError instanceof Error ? createError.message : String(createError);
+					if (!errorMessage.includes('already exists')) {
+						throw createError;
+					}
+				}
 			}
 			
 			// Generate filename with date only

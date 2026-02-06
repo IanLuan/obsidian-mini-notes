@@ -1,10 +1,10 @@
 import { ItemView, TFile, WorkspaceLeaf, setIcon, MarkdownRenderer } from 'obsidian';
-import type VisualDashboardPlugin from '../main';
-import { VIEW_TYPE_VISUAL_DASHBOARD } from '../types';
-import { extractTags, getPreviewText, stripMarkdown } from '../utils/markdown';
-import { formatDate } from '../utils/date';
-import { parseSearchOperators, getSearchSuggestions, filterFiles, type SearchState } from '../utils/search';
-import { FILE_FETCH_MULTIPLIER, DEBOUNCE_REFRESH_MS, MAX_PREVIEW_LENGTH, CARD_SIZE, MAX_CARD_HEIGHT } from '../constants';
+import type VisualDashboardPlugin from './main';
+import { VIEW_TYPE_VISUAL_DASHBOARD } from './utils/types';
+import { extractTags, getPreviewText, stripMarkdown } from './utils/markdown';
+import { formatDate } from './utils/date';
+import { parseSearchOperators, getSearchSuggestions, filterFiles, type SearchState } from './utils/search';
+import { FILE_FETCH_MULTIPLIER, DEBOUNCE_REFRESH_MS, MAX_PREVIEW_LENGTH, CARD_SIZE, MAX_CARD_HEIGHT } from './utils/constants';
 
 export class VisualDashboardView extends ItemView {
 	private miniNotesGrid!: HTMLElement;
