@@ -23,9 +23,9 @@ export function parseSearchOperators(query: string): Omit<SearchState, 'query'> 
 	let filterPinned: 'all' | 'pinned' | 'unpinned' = 'all';
 	let filterFolder: string | null = null;
 
-	// Parse operators: tag:name, color:red, is:pinned, has:tags, type:empty, folder:path, etc.
+	// Parse operators: tag:name, color:red, is:pinned, type:empty, folder:path, etc.
 	// Support both quoted values (folder:"My Folder") and unquoted with spaces (folder:My Folder)
-	const operatorRegex = /(tag|color|is|has|type|folder|path):(?:"([^"]+)"|(.+?))(?=\s+(?:tag|color|is|has|type|folder|path):|$)/gi;
+	const operatorRegex = /(tag|color|is|type|folder|path):(?:"([^"]+)"|(.+?))(?=\s+(?:tag|color|is|type|folder|path):|$)/gi;
 	let match;
 
 	while ((match = operatorRegex.exec(query)) !== null) {
@@ -47,7 +47,7 @@ export function parseSearchOperators(query: string): Omit<SearchState, 'query'> 
 			} else if (value === 'unpinned') {
 				filterPinned = 'unpinned';
 			}
-		} else if (operator === 'has' || operator === 'type') {
+		} else if (operator === 'type') {
 			filterOperators.set(operator, value);
 		}
 	}
@@ -59,9 +59,18 @@ export function getSearchSuggestions(query: string, allTags: string[], allFolder
 	const suggestions: SearchSuggestion[] = [];
 	const lastWord = query.split(' ').pop() || '';
 
+	// Show initial view when query is empty
+	if (query.trim().length === 0) {
+		const operators = ['folder:', 'tag:', 'color:', 'type:', 'is:pinned', 'is:unpinned'];
+		operators.forEach(op => {
+			suggestions.push({ type: 'operator', value: op, display: op });
+		});
+		return suggestions;
+	}
+
 	// Show operator suggestions
 	if (!lastWord.includes(':')) {
-		const operators = ['folder:', 'tag:', 'color:', 'type:', 'is:pinned', 'is:unpinned', 'has:tags', 'has:content'];
+		const operators = ['folder:', 'tag:', 'color:', 'type:', 'is:pinned', 'is:unpinned'];
 		const matchingOps = operators.filter(op => op.startsWith(lastWord.toLowerCase()));
 
 		if (matchingOps.length > 0 && lastWord.length > 0) {
@@ -133,13 +142,13 @@ export function getSearchSuggestions(query: string, allTags: string[], allFolder
 
 export function getCleanQuery(query: string): string {
 	return query
-		.replace(/(tag|color|is|has|type|folder|path):(?:"[^"]+"|.+?)(?=\s+(?:tag|color|is|has|type|folder|path):|$)/gi, '')
+		.replace(/(tag|color|is|type|folder|path):(?:"[^"]+"|.+?)(?=\s+(?:tag|color|is|type|folder|path):|$)/gi, '')
 		.trim()
 		.toLowerCase();
 }
 
 export function isSimpleTextSearch(query: string): boolean {
-	const hasOperators = /(tag|color|is|has|type|folder|path):/i.test(query);
+	const hasOperators = /(tag|color|is|type|folder|path):/i.test(query);
 	return !hasOperators && query.trim().length > 0;
 }
 

@@ -123,6 +123,13 @@ export class VisualDashboardView extends ItemView {
 		// Autocomplete suggestions dropdown
 		this.searchSuggestionsEl = searchContainer.createDiv({ cls: 'search-suggestions' });
 		
+		// Show initial suggestions on focus
+		searchInput.addEventListener('focus', () => {
+			if (!searchInput.value) {
+				this.updateSearchSuggestions('');
+			}
+		});
+		
 		// Event listeners for search
 		searchInput.addEventListener('input', (e) => {
 			const target = e.target as HTMLInputElement;
@@ -296,12 +303,15 @@ export class VisualDashboardView extends ItemView {
 	private applySuggestion(query: string, suggestion: { type: string; value: string; display: string }) {
 		const words = query.split(' ');
 		words[words.length - 1] = suggestion.value;
-		const newQuery = words.join(' ') + (suggestion.type === 'operator' ? '' : ' ');
+		// Only add space if it's an incomplete operator (doesn't contain a value after :)
+		const isIncompleteOperator = suggestion.value.endsWith(':');
+		const newQuery = words.join(' ') + (isIncompleteOperator ? '' : ' ');
 		const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
 		if (searchInput) {
 			searchInput.value = newQuery;
 			this.filterSearch = newQuery;
-			if (suggestion.type !== 'operator') {
+			// Always update search state and refresh (unless it's an incomplete operator)
+			if (!isIncompleteOperator) {
 				this.updateSearchState(newQuery);
 				this.debouncedRefresh();
 			}
