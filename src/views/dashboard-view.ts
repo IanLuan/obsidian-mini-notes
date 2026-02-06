@@ -649,21 +649,42 @@ export class VisualDashboardView extends ItemView {
 				? truncated.substring(0, lastNewline)
 				: truncated;
 		}
-
-		// Dynamic sizing based on content length - more granular
-		const contentLen = cleanContent.length;
-		if (contentLen > CARD_SIZE.XL) {
-			card.addClass('card-xl');
-		} else if (contentLen > CARD_SIZE.LARGE) {
-			card.addClass('card-large');
-		} else if (contentLen > CARD_SIZE.MEDIUM) {
-			card.addClass('card-medium');
-		} else if (contentLen > CARD_SIZE.SMALL) {
-			card.addClass('card-small');
-		} else {
-			card.addClass('card-xs');
-		}
-
+		
+		// Remove Obsidian tags from preview (they're shown in the footer)
+		// split by lines and only remove tags outside code blocks
+		const lines = previewText.split('\n');
+		let inCodeBlock = false;
+		const processedLines = lines.map(line => {
+			// Check if we're entering/exiting a code block
+			if (line.trim().startsWith('```')) {
+				inCodeBlock = !inCodeBlock;
+				return line; // Keep the line as-is
+			}
+			
+			// If we're in a code block, don't touch anything
+			if (inCodeBlock) {
+				return line;
+			}
+			
+			// If we're outside code blocks, remove Obsidian tags but preserve inline code
+			// First protect inline code
+			const inlineCodeParts: string[] = [];
+			let tempLine = line.replace(/`[^`]+`/g, (match) => {
+				inlineCodeParts.push(match);
+				return `\u200B${inlineCodeParts.length - 1}\u200B`;
+			});
+			
+			// Remove Obsidian tags (space + # + alphanumeric)
+			tempLine = tempLine.replace(/(\s)#[a-zA-Z][a-zA-Z0-9_-]*/g, '$1');
+			tempLine = tempLine.replace(/^#[a-zA-Z][a-zA-Z0-9_-]*/g, '');
+			
+			// Restore inline code
+			tempLine = tempLine.replace(/\u200B(\d+)\u200B/g, (_, idx) => inlineCodeParts[parseInt(idx)] || '');
+			
+			return tempLine;
+		});
+		
+		previewText = processedLines.join('\n');
 		// Check if pinned
 		const isPinned = this.plugin.isPinned(file.path);
 		if (isPinned) {
