@@ -670,6 +670,12 @@
     border: 1px solid rgba(232, 234, 237, 0.2);
 }
 
+/* Tags on cards without custom color in dark theme */
+.theme-dark .dashboard-card:not([style*="background-color"]) .card-tag {
+    color: #E8EAED;
+    background: rgba(232, 234, 237, 0.1);
+}
+
 /* ============================================
    Card Content
    ============================================ */
