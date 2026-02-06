@@ -643,10 +643,7 @@
     line-height: 1.35;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
 }
 
 /* Google Keep-inspired text styling for colored cards in dark theme */
