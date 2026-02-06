@@ -79,6 +79,30 @@
     gap: 4px;
 }
 
+/* Create Note Button */
+.create-note-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    color: var(--text-muted);
+    background: var(--background-modifier-form-field);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.create-note-btn:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.create-note-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
 /* Search Bar */
 .search-container {
     position: relative;

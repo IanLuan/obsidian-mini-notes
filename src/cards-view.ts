@@ -177,6 +177,13 @@ export class VisualDashboardView extends ItemView {
 			}
 		});
 
+		// Create new note button
+		const createBtn = controls.createDiv({ cls: 'create-note-btn', attr: { 'aria-label': 'Create new mini note' } });
+		setIcon(createBtn, 'plus');
+		createBtn.addEventListener('click', async () => {
+			await this.plugin.createMiniNote();
+		});
+
 		// Create mini notes grid container
 		this.miniNotesGrid = this.contentEl.createDiv({ cls: 'mini-notes-grid' });
 
