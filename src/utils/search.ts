@@ -6,11 +6,12 @@ export interface SearchState {
 	filterTag: string | null;
 	filterPinned: 'all' | 'pinned' | 'unpinned';
 	filterColors: string[];
+	filterFolder: string | null;
 	filterOperators: Map<string, string>;
 }
 
 export interface SearchSuggestion {
-	type: 'operator' | 'tag' | 'color' | 'typeValue';
+	type: 'operator' | 'tag' | 'color' | 'typeValue' | 'folder';
 	value: string;
 	display: string;
 }
@@ -20,14 +21,17 @@ export function parseSearchOperators(query: string): Omit<SearchState, 'query'> 
 	const filterColors: string[] = [];
 	let filterTag: string | null = null;
 	let filterPinned: 'all' | 'pinned' | 'unpinned' = 'all';
+	let filterFolder: string | null = null;
 
-	// Parse operators: tag:name, color:red, is:pinned, has:tags, type:empty, etc.
-	const operatorRegex = /(tag|color|is|has|type):(\S+)/gi;
+	// Parse operators: tag:name, color:red, is:pinned, has:tags, type:empty, folder:path, etc.
+	// Support both quoted values (folder:"My Folder") and unquoted with spaces (folder:My Folder)
+	const operatorRegex = /(tag|color|is|has|type|folder|path):(?:"([^"]+)"|(.+?))(?=\s+(?:tag|color|is|has|type|folder|path):|$)/gi;
 	let match;
 
 	while ((match = operatorRegex.exec(query)) !== null) {
 		const operator = match[1]?.toLowerCase();
-		const value = match[2]?.toLowerCase();
+		// Value is either quoted (group 2) or unquoted (group 3)
+		const value = (match[2] || match[3])?.trim().toLowerCase();
 
 		if (!operator || !value) continue;
 
@@ -35,6 +39,8 @@ export function parseSearchOperators(query: string): Omit<SearchState, 'query'> 
 			filterTag = value;
 		} else if (operator === 'color') {
 			filterColors.push(value);
+		} else if (operator === 'folder' || operator === 'path') {
+			filterFolder = value;
 		} else if (operator === 'is') {
 			if (value === 'pinned') {
 				filterPinned = 'pinned';
@@ -46,16 +52,16 @@ export function parseSearchOperators(query: string): Omit<SearchState, 'query'> 
 		}
 	}
 
-	return { filterTag, filterPinned, filterColors, filterOperators };
+	return { filterTag, filterPinned, filterColors, filterFolder, filterOperators };
 }
 
-export function getSearchSuggestions(query: string, allTags: string[]): SearchSuggestion[] {
+export function getSearchSuggestions(query: string, allTags: string[], allFolders: string[] = []): SearchSuggestion[] {
 	const suggestions: SearchSuggestion[] = [];
 	const lastWord = query.split(' ').pop() || '';
 
 	// Show operator suggestions
 	if (!lastWord.includes(':')) {
-		const operators = ['tag:', 'color:', 'type:', 'is:pinned', 'is:unpinned', 'has:tags', 'has:content'];
+		const operators = ['folder:', 'tag:', 'color:', 'type:', 'is:pinned', 'is:unpinned', 'has:tags', 'has:content'];
 		const matchingOps = operators.filter(op => op.startsWith(lastWord.toLowerCase()));
 
 		if (matchingOps.length > 0 && lastWord.length > 0) {
@@ -107,18 +113,33 @@ export function getSearchSuggestions(query: string, allTags: string[]): SearchSu
 		}
 	}
 
+	// Show folder suggestions when typing folder: or path:
+	if (lastWord.startsWith('folder:') || lastWord.startsWith('path:')) {
+		const prefix = lastWord.startsWith('folder:') ? 'folder:' : 'path:';
+		const folderPrefix = lastWord.substring(prefix.length).toLowerCase();
+		const matchingFolders = allFolders.filter(folder => folder.toLowerCase().includes(folderPrefix));
+
+		if (matchingFolders.length > 0) {
+			matchingFolders.slice(0, 8).forEach(folder => {
+				const displayFolder = folder === '/' ? '/' : folder;
+				suggestions.push({ type: 'folder', value: `folder:${folder}`, display: `folder:${displayFolder}` });
+			});
+			return suggestions;
+		}
+	}
+
 	return suggestions;
 }
 
 export function getCleanQuery(query: string): string {
 	return query
-		.replace(/(tag|color|is|has|type):\S+/gi, '')
+		.replace(/(tag|color|is|has|type|folder|path):(?:"[^"]+"|.+?)(?=\s+(?:tag|color|is|has|type|folder|path):|$)/gi, '')
 		.trim()
 		.toLowerCase();
 }
 
 export function isSimpleTextSearch(query: string): boolean {
-	const hasOperators = /(tag|color|is|has|type):/i.test(query);
+	const hasOperators = /(tag|color|is|has|type|folder|path):/i.test(query);
 	return !hasOperators && query.trim().length > 0;
 }
 
@@ -203,6 +224,15 @@ export function filterFiles(
 			const content = fileContents.get(f.path) || '';
 			const tags = extractTags(content);
 			return tags.includes(searchState.filterTag!);
+		});
+	}
+
+	// Apply folder filter
+	if (searchState.filterFolder) {
+		const folderPath = searchState.filterFolder === '/' ? '' : searchState.filterFolder;
+		filtered = filtered.filter(f => {
+			if (folderPath === '') return true; // All files if root
+			return f.path.toLowerCase().startsWith(folderPath);
 		});
 	}
 

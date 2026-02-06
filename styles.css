@@ -187,7 +187,8 @@
     transition: background-color 0.1s;
 }
 
-.search-suggestion-item:hover {
+.search-suggestion-item:hover,
+.search-suggestion-item.selected {
     background: var(--background-modifier-hover);
 }
 

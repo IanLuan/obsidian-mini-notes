@@ -18,11 +18,16 @@ export class VisualDashboardView extends ItemView {
 	// Filter state
 	private filterPinned: 'all' | 'pinned' | 'unpinned' = 'all';
 	private filterTag: string | null = null;
+	private filterFolder: string | null = null;
 	private filterSearch: string = '';
 	private allTags: string[] = [];
+	private allFolders: string[] = [];
 	private filterColors: string[] = [];
 	private filterOperators: Map<string, string> = new Map();
 	private searchSuggestionsEl: HTMLElement | null = null;
+	private selectedSuggestionIndex: number = -1;
+	private currentSuggestions: Array<{ type: string; value: string; display: string }> = [];
+	private currentSuggestionQuery: string = '';
 
 	constructor(leaf: WorkspaceLeaf, plugin: VisualDashboardPlugin) {
 		super(leaf);
@@ -91,7 +96,7 @@ export class VisualDashboardView extends ItemView {
 		
 		const searchInput = searchWrapper.createEl('input', { 
 			type: 'text', 
-			placeholder: 'Search notes (try tag:, color:, type:, is:pinned)',
+			placeholder: 'Search notes (try folder:, tag:, color:, type:, is:pinned)',
 			cls: 'search-input'
 		});
 		
@@ -144,9 +149,31 @@ export class VisualDashboardView extends ItemView {
 		
 		// Handle keyboard navigation in suggestions
 		searchInput.addEventListener('keydown', (e: KeyboardEvent) => {
-			if (e.key === 'Escape' && this.searchSuggestionsEl) {
+			if (!this.searchSuggestionsEl || !this.searchSuggestionsEl.hasClass('show')) {
+				return;
+			}
+			
+			const suggestions = this.searchSuggestionsEl.querySelectorAll('.search-suggestion-item');
+			if (suggestions.length === 0) return;
+			
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				this.selectedSuggestionIndex = Math.min(this.selectedSuggestionIndex + 1, suggestions.length - 1);
+				this.highlightSuggestion(suggestions);
+			} else if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				this.selectedSuggestionIndex = Math.max(this.selectedSuggestionIndex - 1, 0);
+				this.highlightSuggestion(suggestions);
+			} else if (e.key === 'Enter' && this.selectedSuggestionIndex >= 0) {
+				e.preventDefault();
+				const selectedSuggestion = this.currentSuggestions[this.selectedSuggestionIndex];
+				if (selectedSuggestion) {
+					this.applySuggestion(this.currentSuggestionQuery, selectedSuggestion);
+				}
+			} else if (e.key === 'Escape') {
 				this.searchSuggestionsEl.empty();
 				this.searchSuggestionsEl.removeClass('show');
+				this.selectedSuggestionIndex = -1;
 			}
 		});
 
@@ -215,6 +242,7 @@ export class VisualDashboardView extends ItemView {
 		this.filterTag = parsed.filterTag;
 		this.filterPinned = parsed.filterPinned;
 		this.filterColors = parsed.filterColors;
+		this.filterFolder = parsed.filterFolder;
 		this.filterOperators = parsed.filterOperators;
 	}
 
@@ -222,28 +250,24 @@ export class VisualDashboardView extends ItemView {
 		if (!this.searchSuggestionsEl) return;
 		
 		this.searchSuggestionsEl.empty();
+		this.selectedSuggestionIndex = -1;
+		this.currentSuggestionQuery = query;
 		
-		const suggestions = getSearchSuggestions(query, this.allTags);
+		const suggestions = getSearchSuggestions(query, this.allTags, this.allFolders);
+		this.currentSuggestions = suggestions;
 		
 		if (suggestions.length > 0) {
-			suggestions.forEach(suggestion => {
+			suggestions.forEach((suggestion, index) => {
 				const suggestionEl = this.searchSuggestionsEl!.createDiv({ cls: 'search-suggestion-item' });
 				suggestionEl.textContent = suggestion.display;
+				suggestionEl.addEventListener('mouseenter', () => {
+					this.selectedSuggestionIndex = index;
+					const allSuggestions = this.searchSuggestionsEl!.querySelectorAll('.search-suggestion-item');
+					this.highlightSuggestion(allSuggestions);
+				});
 				suggestionEl.addEventListener('mousedown', (e) => {
 					e.preventDefault();
-					const words = query.split(' ');
-					words[words.length - 1] = suggestion.value;
-					const newQuery = words.join(' ') + (suggestion.type === 'operator' ? '' : ' ');
-					const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
-					if (searchInput) {
-						searchInput.value = newQuery;
-						this.filterSearch = newQuery;
-						if (suggestion.type !== 'operator') {
-							this.updateSearchState(newQuery);
-							this.debouncedRefresh();
-						}
-						searchInput.focus();
-					}
+					this.applySuggestion(query, suggestion);
 				});
 			});
 			this.searchSuggestionsEl.addClass('show');
@@ -252,9 +276,39 @@ export class VisualDashboardView extends ItemView {
 		}
 	}
 
+	private highlightSuggestion(suggestions: NodeListOf<Element>) {
+		suggestions.forEach((el, idx) => {
+			if (idx === this.selectedSuggestionIndex) {
+				el.addClass('selected');
+			} else {
+				el.removeClass('selected');
+			}
+		});
+	}
+
+	private applySuggestion(query: string, suggestion: { type: string; value: string; display: string }) {
+		const words = query.split(' ');
+		words[words.length - 1] = suggestion.value;
+		const newQuery = words.join(' ') + (suggestion.type === 'operator' ? '' : ' ');
+		const searchInput = this.contentEl.querySelector('.search-input') as HTMLInputElement;
+		if (searchInput) {
+			searchInput.value = newQuery;
+			this.filterSearch = newQuery;
+			if (suggestion.type !== 'operator') {
+				this.updateSearchState(newQuery);
+				this.debouncedRefresh();
+			}
+			this.searchSuggestionsEl?.empty();
+			this.searchSuggestionsEl?.removeClass('show');
+			this.selectedSuggestionIndex = -1;
+			searchInput.focus();
+		}
+	}
+
 	private clearAllFilters() {
 		this.filterSearch = '';
 		this.filterTag = null;
+		this.filterFolder = null;
 		this.filterPinned = 'all';
 		this.filterColors = [];
 		this.filterOperators.clear();
@@ -339,12 +393,23 @@ export class VisualDashboardView extends ItemView {
 
 		this.allTags = Array.from(tagSet).sort();
 
+		// Get all folders in vault for folder suggestions
+		const folderSet = new Set<string>();
+		folderSet.add('/'); // Add root
+		this.app.vault.getAllLoadedFiles().forEach(file => {
+			if ('children' in file && file.children !== undefined) {
+				if (file.path) folderSet.add(file.path);
+			}
+		});
+		this.allFolders = Array.from(folderSet).sort();
+
 		// Apply all filters using search module
 		const searchState: SearchState = {
 			query: this.filterSearch,
 			filterTag: this.filterTag,
 			filterPinned: this.filterPinned,
 			filterColors: this.filterColors,
+			filterFolder: this.filterFolder,
 			filterOperators: this.filterOperators
 		};
 		
