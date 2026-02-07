@@ -18,7 +18,7 @@ export const DEFAULT_DATA: DashboardData = {
 	pinnedNotes: [],
 	noteOrder: [],
 	viewTitle: 'Do Your Best Today!',
-	sourceFolder: '/',
+	sourceFolder: 'Mini Notes',
 	createFolder: 'Mini Notes',
 	maxNotes: 150,
 	noteColors: {},
