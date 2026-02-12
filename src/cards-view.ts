@@ -314,10 +314,13 @@ export class VisualDashboardView extends ItemView {
 			if (!isIncompleteOperator) {
 				this.updateSearchState(newQuery);
 				this.debouncedRefresh();
+				this.searchSuggestionsEl?.empty();
+				this.searchSuggestionsEl?.removeClass('show');
+				this.selectedSuggestionIndex = -1;
+			} else {
+				// For incomplete operators, show the next level of suggestions
+				this.updateSearchSuggestions(newQuery);
 			}
-			this.searchSuggestionsEl?.empty();
-			this.searchSuggestionsEl?.removeClass('show');
-			this.selectedSuggestionIndex = -1;
 			searchInput.focus();
 		}
 	}
