@@ -32,6 +32,7 @@ export class VisualDashboardView extends ItemView {
 	private selectedSuggestionIndex: number = -1;
 	private currentSuggestions: Array<{ type: string; value: string; display: string }> = [];
 	private currentSuggestionQuery: string = '';
+	private activeColorDropdown: HTMLElement | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: VisualDashboardPlugin) {
 		super(leaf);
@@ -358,6 +359,16 @@ export class VisualDashboardView extends ItemView {
 		}
 	}
 
+	private closeAllColorDropdowns(except: HTMLElement | null = null) {
+		if (this.activeColorDropdown && this.activeColorDropdown !== except) {
+			this.activeColorDropdown.removeClass('show');
+		}
+
+		if (!except) {
+			this.activeColorDropdown = null;
+		}
+	}
+
 	private applyThemeColor() {
 		const container = this.contentEl;
 		let themeColor: string;
@@ -657,7 +668,7 @@ export class VisualDashboardView extends ItemView {
 					}
 					
 					await this.plugin.savePluginData();
-					colorDropdown.removeClass('show');
+					this.closeAllColorDropdowns();
 				})();
 			});
 		});
@@ -665,12 +676,17 @@ export class VisualDashboardView extends ItemView {
 		// Toggle dropdown on click
 		colorBtn.addEventListener('click', (e: MouseEvent) => {
 			e.stopPropagation();
-			colorDropdown.toggleClass('show', !colorDropdown.hasClass('show'));
+			const shouldOpen = !colorDropdown.hasClass('show');
+			this.closeAllColorDropdowns(colorDropdown);
+			colorDropdown.toggleClass('show', shouldOpen);
+			this.activeColorDropdown = shouldOpen ? colorDropdown : null;
 		});
 		
 		// Close dropdown when clicking outside
 		card.addEventListener('click', () => {
-			colorDropdown.removeClass('show');
+			if (this.activeColorDropdown === colorDropdown) {
+				this.closeAllColorDropdowns();
+			}
 		});
 
 		// Card header with file info
