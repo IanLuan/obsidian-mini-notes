@@ -267,7 +267,7 @@ export class VisualDashboardView extends ItemView {
 		this.selectedSuggestionIndex = -1;
 		this.currentSuggestionQuery = query;
 		
-		const suggestions = getSearchSuggestions(query, this.allTags, this.allFolders);
+		const suggestions = getSearchSuggestions(query, this.allTags, this.allFolders, this.plugin.data.noteColors);
 		this.currentSuggestions = suggestions;
 		
 		if (suggestions.length > 0) {
@@ -613,13 +613,12 @@ export class VisualDashboardView extends ItemView {
 		
 		// Create color palette dropdown using CSS variables
 		const pastelColors = [
-			'var(--pastel-pink)',     // Pink
 			'var(--pastel-peach)',    // Peach
 			'var(--pastel-yellow)',   // Yellow
 			'var(--pastel-green)',    // Green
 			'var(--pastel-blue)',     // Blue
 			'var(--pastel-purple)',   // Purple
-			'var(--pastel-magenta)',  // Magenta
+			'var(--pastel-magenta)',  // Pink
 			'var(--pastel-gray)'      // Gray (remove color)
 		];
 		
