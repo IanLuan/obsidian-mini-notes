@@ -1,3 +1,7 @@
+export function normalizeTag(tag: string): string {
+	return tag.trim().replace(/^#/, '').toLowerCase();
+}
+
 // Extract tags from markdown content
 export function extractTags(content: string): string[] {
 	// First, remove code blocks (``` ... ```) and inline code (` ... `)
@@ -11,7 +15,7 @@ export function extractTags(content: string): string[] {
 	let match;
 
 	while ((match = tagRegex.exec(contentWithoutCode)) !== null) {
-		const tag = '#' + match[1];
+		const tag = '#' + normalizeTag(match[1] || '');
 		if (!tags.includes(tag)) {
 			tags.push(tag);
 		}
