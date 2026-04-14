@@ -4,6 +4,7 @@ import {
 	WorkspaceLeaf,
 	setIcon,
 	MarkdownRenderer,
+	type EventRef,
 } from "obsidian";
 import type VisualDashboardPlugin from "./main";
 import { VIEW_TYPE_VISUAL_DASHBOARD } from "./utils/types";
@@ -268,9 +269,14 @@ export class VisualDashboardView extends ItemView {
 
 	private setupEventListeners() {
 		// Listen for settings changes using workspace event
+		const workspace = this.app.workspace as typeof this.app.workspace & {
+			on(
+				name: "mini-notes:settings-changed",
+				callback: () => void,
+			): EventRef;
+		};
 		this.registerEvent(
-			// @ts-ignore - Custom event type
-			this.app.workspace.on(
+			workspace.on(
 				"mini-notes:settings-changed",
 				this.settingsChangedHandler,
 			),
@@ -289,6 +295,7 @@ export class VisualDashboardView extends ItemView {
 		this.registerEvent(
 			this.app.vault.on("rename", () => this.debouncedRefresh()),
 		);
+		this.registerDomEvent(window, "resize", () => this.debouncedRefresh());
 	}
 
 	private async refreshView() {
@@ -479,6 +486,43 @@ export class VisualDashboardView extends ItemView {
 		container.style.setProperty("--masonry-theme-color", themeColor);
 	}
 
+	private getMasonryColumnCount(): number {
+		const width = this.contentEl.clientWidth || window.innerWidth;
+
+		if (width >= 1400) return 6;
+		if (width >= 1100) return 5;
+		if (width >= 800) return 4;
+		if (width >= 500) return 3;
+		return 2;
+	}
+
+	private async renderMasonrySection(
+		files: TFile[],
+		startIndex: number,
+	): Promise<number> {
+		const section = this.miniNotesGrid.createDiv({
+			cls: "mini-notes-grid-section",
+		});
+		const columns = Array.from(
+			{ length: this.getMasonryColumnCount() },
+			(_, index) =>
+				section.createDiv({
+					cls: "mini-notes-column",
+					attr: { "data-column-index": index.toString() },
+				}),
+		);
+
+		let nextIndex = startIndex;
+		for (const [fileIndex, file] of files.entries()) {
+			const card = await this.createCard(file, nextIndex++);
+			if (card) {
+				columns[fileIndex % columns.length]?.appendChild(card);
+			}
+		}
+
+		return nextIndex;
+	}
+
 	private getFileTags(file: TFile, content?: string): string[] {
 		const cache = this.app.metadataCache.getFileCache(file);
 		const tags = new Set<string>();
@@ -626,13 +670,10 @@ export class VisualDashboardView extends ItemView {
 			if (needsSections) {
 				// Render pinned section
 				if (pinnedFiles.length > 0) {
-					const pinnedGrid = this.miniNotesGrid.createDiv({
-						cls: "mini-notes-grid-section",
-					});
-					for (const file of pinnedFiles) {
-						const card = await this.createCard(file, globalIndex++);
-						if (card) pinnedGrid.appendChild(card);
-					}
+					globalIndex = await this.renderMasonrySection(
+						pinnedFiles,
+						globalIndex,
+					);
 				}
 
 				// Separator line between sections
@@ -640,23 +681,17 @@ export class VisualDashboardView extends ItemView {
 
 				// Render all notes section
 				if (unpinnedFiles.length > 0) {
-					const notesGrid = this.miniNotesGrid.createDiv({
-						cls: "mini-notes-grid-section",
-					});
-					for (const file of unpinnedFiles) {
-						const card = await this.createCard(file, globalIndex++);
-						if (card) notesGrid.appendChild(card);
-					}
+					globalIndex = await this.renderMasonrySection(
+						unpinnedFiles,
+						globalIndex,
+					);
 				}
 			} else {
 				// Single section without header
-				const singleGrid = this.miniNotesGrid.createDiv({
-					cls: "mini-notes-grid-section",
-				});
-				for (const file of [...pinnedFiles, ...unpinnedFiles]) {
-					const card = await this.createCard(file, globalIndex++);
-					if (card) singleGrid.appendChild(card);
-				}
+				globalIndex = await this.renderMasonrySection(
+					[...pinnedFiles, ...unpinnedFiles],
+					globalIndex,
+				);
 			}
 		} catch (error) {
 			console.error("Error rendering cards:", error);
@@ -918,7 +953,11 @@ export class VisualDashboardView extends ItemView {
 
 			// Date on right
 			const dateSpan = cardFooter.createSpan({ cls: "card-date" });
-			dateSpan.createSpan({ text: formatDate(file.stat.mtime) });
+			dateSpan.createSpan({ text: formatDate(file.stat.ctime) });
+			dateSpan.setAttribute(
+				"title",
+				`Modified ${new Date(file.stat.mtime).toLocaleString()}`,
+			);
 
 			// Click handler to open the note
 			card.addEventListener("click", (e: MouseEvent) => {
@@ -1094,12 +1133,34 @@ export class VisualDashboardView extends ItemView {
 	}
 
 	private getCurrentCardOrder(): string[] {
-		const cards = Array.from(
-			this.miniNotesGrid.querySelectorAll(".dashboard-card[data-path]"),
+		const sections = Array.from(
+			this.miniNotesGrid.querySelectorAll(".mini-notes-grid-section"),
 		);
-		return cards
-			.map((card) => card.getAttribute("data-path"))
-			.filter((path): path is string => path !== null && path.length > 0);
+		const order: string[] = [];
+
+		sections.forEach((section) => {
+			const columns = Array.from(
+				section.querySelectorAll(".mini-notes-column"),
+			).map((column) =>
+				Array.from(column.querySelectorAll(".dashboard-card[data-path]")),
+			);
+
+			const maxRows = columns.reduce(
+				(max, column) => Math.max(max, column.length),
+				0,
+			);
+
+			for (let row = 0; row < maxRows; row++) {
+				for (const column of columns) {
+					const path = column[row]?.getAttribute("data-path");
+					if (path) {
+						order.push(path);
+					}
+				}
+			}
+		});
+
+		return order;
 	}
 
 	private syncCurrentFilesFromOrder(order: string[]) {

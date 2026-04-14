@@ -15,9 +15,12 @@ export function formatDate(timestamp: number): string {
 	} else if (diffDays < 7) {
 		return `${diffDays}d ago`;
 	} else {
+		const sameYear = date.getFullYear() === now.getFullYear();
+
 		return date.toLocaleDateString('en-US', {
 			month: 'short',
-			day: 'numeric'
+			day: 'numeric',
+			...(sameYear ? {} : { year: 'numeric' })
 		});
 	}
 }
